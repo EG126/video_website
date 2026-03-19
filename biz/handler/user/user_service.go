@@ -9,7 +9,6 @@ import (
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/mysql/entity"
 	"video_website/biz/dal/redis"
-	"video_website/biz/model/base"
 	"video_website/pkg/bcrypt"
 	"video_website/pkg/errno"
 	"video_website/pkg/jwt"
@@ -117,7 +116,13 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	data := []*user.UserDataResp{{
+	type loginData struct {
+		Users        []*user.UserDataResp `json:"users"` // 用户列表
+		AccessToken  string               `json:"access_token"`
+		RefreshToken string               `json:"refresh_token"`
+	}
+
+	userList := []*user.UserDataResp{{
 		ID:        u.ID,
 		Username:  u.Username,
 		AvatarURL: u.AvatarURL,
@@ -125,13 +130,12 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		UpdatedAt: u.UpdatedAt.Format("2006-01-02 15:04:05"),
 		DeletedAt: "",
 	}}
-	resp := &user.UserLoginResp{
-		Base:         &base.BaseResp{Code: errno.Success.Code, Msg: errno.Success.Msg},
-		Data:         data,
+
+	response.SendResponse(c, errno.Success, loginData{
+		Users:        userList,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }
 
 // Info 获取用户信息
@@ -270,13 +274,13 @@ func Refresh(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	resp := &user.RefreshResp{
-		Base: &base.BaseResp{
-			Code: errno.Success.Code,
-			Msg:  errno.Success.Msg,
-		},
+	type refreshData struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	response.SendResponse(c, errno.Success, refreshData{
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }

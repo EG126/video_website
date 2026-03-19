@@ -74,11 +74,15 @@ func FollowingList(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	resp := &social.FollowingListResp{
+	type followingData struct {
+		Items []*social.SocialItemsResp `json:"items"`
+		Total int32                     `json:"total"`
+	}
+
+	response.SendResponse(c, errno.Success, followingData{
 		Items: items,
 		Total: int32(total),
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }
 
 // FollowerList 粉丝列表
@@ -110,11 +114,15 @@ func FollowerList(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	resp := &social.FollowerListResp{
+	type followerData struct {
+		Items []*social.SocialItemsResp `json:"items"`
+		Total int32                     `json:"total"`
+	}
+
+	response.SendResponse(c, errno.Success, followerData{
 		Items: items,
 		Total: int32(total),
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }
 
 // FriendsList 好友列表
@@ -158,9 +166,13 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	resp := &social.FriendsListResp{
+	type friendsData struct {
+		Items []*social.SocialItemsResp `json:"items"`
+		Total int32                     `json:"total"`
+	}
+
+	response.SendResponse(c, errno.Success, friendsData{
 		Items: items,
 		Total: int32(total),
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }

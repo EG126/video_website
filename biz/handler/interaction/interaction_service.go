@@ -83,10 +83,7 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	resp := &interaction.LikeListResp{
-		Items: items,
-	}
-	response.SendResponse(c, errno.Success, resp)
+	response.SendResponse(c, errno.Success, items)
 }
 
 // CommentPublish 发表评论

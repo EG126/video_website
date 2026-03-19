@@ -108,11 +108,15 @@ func List(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	resp := &video.VideoListResp{
+	type videoListData struct {
+		Items []*video.VideoItemsResp `json:"items"`
+		Total int32                   `json:"total"`
+	}
+
+	response.SendResponse(c, errno.Success, videoListData{
 		Items: items,
 		Total: int32(total),
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }
 
 // Popular 热门排行榜
@@ -126,33 +130,29 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 
 	cacheKey := "popular:videos"
 
-	//从redis中获取缓存
+	// 从 Redis 获取缓存
 	cached, err := redis.RDB.Get(ctx, cacheKey).Result()
 	if err == nil {
 		var allItems []*video.VideoItemsResp
 		if json.Unmarshal([]byte(cached), &allItems) == nil {
-			//内存分页
+			// 内存分页
 			start := (req.PageNum - 1) * req.PageSize
 			end := start + req.PageSize
 			if int(start) < len(allItems) {
 				if int(end) > len(allItems) {
 					end = int32(len(allItems))
 				}
-				resp := &video.VideoPopularResp{
-					Items: allItems[start:end],
-				}
-				response.SendResponse(c, errno.Success, resp)
+				response.SendResponse(c, errno.Success, allItems[start:end])
 				return
 			}
-			//超出范围返回空列表
-			response.SendResponse(c, errno.Success, &video.VideoPopularResp{Items: []*video.VideoItemsResp{}})
+			// 超出范围返回空切片
+			response.SendResponse(c, errno.Success, []*video.VideoItemsResp{})
 			return
 		}
 	}
 
-	//缓存未命中，从数据库查询
-	var videos []*entity.Video
-	videos, err = mysql.GetPopularVideos(ctx, 1, 100)
+	// 缓存未命中，从数据库查询前100条热门视频
+	videos, err := mysql.GetPopularVideos(ctx, 1, 100)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "查询热门视频失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
@@ -177,24 +177,21 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	//存入redis
+	// 存入 Redis 缓存
 	if jsonData, err := json.Marshal(items); err == nil {
 		redis.RDB.Set(ctx, cacheKey, jsonData, 5*time.Minute)
 	}
 
 	start := (req.PageNum - 1) * req.PageSize
 	end := start + req.PageSize
-	if int(start) < len(videos) {
-		if int(end) > len(videos) {
-			end = int32(len(videos))
+	if int(start) < len(items) {
+		if int(end) > len(items) {
+			end = int32(len(items))
 		}
-		resp := &video.VideoPopularResp{
-			Items: items[start:end],
-		}
-		response.SendResponse(c, errno.Success, resp)
+		response.SendResponse(c, errno.Success, items[start:end])
 		return
 	}
-	response.SendResponse(c, errno.Success, &video.VideoPopularResp{Items: []*video.VideoItemsResp{}})
+	response.SendResponse(c, errno.Success, []*video.VideoItemsResp{})
 }
 
 // Search 搜索视频
@@ -231,9 +228,13 @@ func Search(ctx context.Context, c *app.RequestContext) {
 		})
 	}
 
-	resp := &video.VideoSearchResp{
+	type videoSearchData struct {
+		Items []*video.VideoItemsResp `json:"items"`
+		Total int32                   `json:"total"`
+	}
+
+	response.SendResponse(c, errno.Success, videoSearchData{
 		Items: items,
 		Total: int32(total),
-	}
-	response.SendResponse(c, errno.Success, resp)
+	})
 }
