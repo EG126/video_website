@@ -3,6 +3,7 @@ module video_website
 go 1.25.5
 
 require (
+	github.com/apache/thrift v0.22.0
 	github.com/bwmarrin/snowflake v0.3.0
 	github.com/cloudwego/hertz v0.10.4
 	github.com/golang-jwt/jwt/v5 v5.3.1

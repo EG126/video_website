@@ -4,6 +4,7 @@ package user
 
 import (
 	"context"
+	"io"
 	"os"
 	"time"
 	"video_website/biz/dal/mysql"
@@ -30,10 +31,10 @@ func Register(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始处理注册请求, 用户名: %s", req.Username)
 
 	exist, err := mysql.IsUserExist(ctx, req.Username)
 	if err != nil {
-		//hlog.CtxErrorf():记录带上下文的错误日志
 		hlog.CtxErrorf(ctx, "检查用户名失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
@@ -58,14 +59,14 @@ func Register(ctx context.Context, c *app.RequestContext) {
 		AvatarURL: "https://default-avatar.com/default.png",
 		CreatedAt: now,
 		UpdatedAt: now,
-		//DeletedAt为零值
 	}
 	if err := mysql.CreateUser(ctx, newUser); err != nil {
-		hlog.CtxErrorf(ctx, "创建用户失败: &v", err)
+		hlog.CtxErrorf(ctx, "创建用户失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
 
+	hlog.CtxInfof(ctx, "用户注册成功, 用户ID: %s", newUser.ID)
 	response.SendResponse(c, errno.Success, nil)
 }
 
@@ -77,6 +78,7 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始处理登录请求, 用户名: %s", req.Username)
 
 	u, err := mysql.GetUserByUsername(ctx, req.Username)
 	if err != nil {
@@ -108,16 +110,17 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	//将refresh token存入Redis，设置七天过期
+	// 将refresh token存入Redis，设置七天过期
 	redisKey := "refresh:" + refreshToken
 	if err := redis.RDB.Set(ctx, redisKey, u.ID, 7*24*time.Hour).Err(); err != nil {
 		hlog.CtxErrorf(ctx, "存储refresh token失败: %v", err)
 		response.SendResponse(c, errno.RedisError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "用户登录成功, 用户ID: %s", u.ID)
 
 	type loginData struct {
-		Users        []*user.UserDataResp `json:"users"` // 用户列表
+		Users        []*user.UserDataResp `json:"users"`
 		AccessToken  string               `json:"access_token"`
 		RefreshToken string               `json:"refresh_token"`
 	}
@@ -146,6 +149,7 @@ func Info(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始获取用户信息, 请求用户ID: %s", req.UserID)
 
 	u, err := mysql.GetUserByID(ctx, req.UserID)
 	if err != nil {
@@ -168,6 +172,7 @@ func Info(ctx context.Context, c *app.RequestContext) {
 			DeletedAt: "",
 		},
 	}
+	hlog.CtxInfof(ctx, "获取用户信息成功, 用户ID: %s", req.UserID)
 	response.SendResponse(c, errno.Success, data)
 }
 
@@ -179,6 +184,31 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始处理上传头像请求")
+
+	file, err := c.FormFile("data")
+	if err != nil {
+		hlog.CtxErrorf(ctx, "获取文件表单失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		hlog.CtxErrorf(ctx, "打开文件失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+	defer src.Close()
+
+	dataBytes, err := io.ReadAll(src)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "读取文件失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+	req.Data = dataBytes
+	hlog.CtxInfof(ctx, "获取头像文件成功, 文件名: %s, 大小: %d bytes", file.Filename, file.Size)
 
 	token := string(c.GetHeader("Access-token"))
 	if token == "" {
@@ -192,25 +222,22 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 	}
 	userID := claims.UserID
 
-	//检验文件类型
-	if len(req.Data) == 0 {
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-
 	fileName := userID + "_" + time.Now().Format("20060102150405") + ".jpg"
 	filePath := "./static/avatars/" + fileName
 	if err := os.WriteFile(filePath, req.Data, 0644); err != nil {
 		hlog.CtxErrorf(ctx, "保存头像失败: %v", err)
+		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
-	avatarURL := "http:127.0.0.1:8888/static/avatars/" + fileName
+	avatarURL := "http://127.0.0.1:8888/static/avatars/" + fileName
+	hlog.CtxInfof(ctx, "头像文件保存成功, 路径: %s", filePath)
 
 	if err := mysql.UpdateUserAvatar(ctx, userID, avatarURL); err != nil {
 		hlog.CtxErrorf(ctx, "更新头像失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "更新用户头像成功, 用户ID: %s", userID)
 
 	u, err := mysql.GetUserByID(ctx, userID)
 	if err != nil {
@@ -226,8 +253,8 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 		UpdatedAt: u.UpdatedAt.Format("2006-01-02 15:04:05"),
 		DeletedAt: "",
 	}}
+	hlog.CtxInfof(ctx, "上传头像处理完成, 用户ID: %s", userID)
 	response.SendResponse(c, errno.Success, data)
-
 }
 
 // Refresh 刷新令牌
@@ -238,17 +265,19 @@ func Refresh(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始处理刷新token请求")
 
 	redisKey := "refresh:" + req.RefreshToken
 	userID, err := redis.RDB.Get(ctx, redisKey).Result()
-	if err != redis2.Nil {
-		response.SendResponse(c, errno.RedisError, nil)
+	if err == redis2.Nil {
+		response.SendResponse(c, errno.TokenInvalid, nil)
 		return
 	} else if err != nil {
 		hlog.CtxErrorf(ctx, "Redis错误: %v", err)
 		response.SendResponse(c, errno.RedisError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "刷新token: 从Redis获取用户ID成功, 用户ID: %s", userID)
 
 	newAccessToken, err := jwt.GenerateAccessToken(userID)
 	if err != nil {
@@ -264,21 +293,25 @@ func Refresh(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	//删除旧的 refresh token
+	// 删除旧的 refresh token
 	redis.RDB.Del(ctx, redisKey)
-	//存储新的
+	hlog.CtxInfof(ctx, "刷新token: 删除旧refresh token成功")
+
+	// 存储新的
 	newKey := "refresh:" + newRefreshToken
 	if err := redis.RDB.Set(ctx, newKey, userID, 7*24*time.Hour).Err(); err != nil {
 		hlog.CtxErrorf(ctx, "存储refresh token失败: %v", err)
 		response.SendResponse(c, errno.RedisError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "刷新token: 存储新refresh token成功")
 
 	type refreshData struct {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 	}
 
+	hlog.CtxInfof(ctx, "刷新token处理完成, 用户ID: %s", userID)
 	response.SendResponse(c, errno.Success, refreshData{
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,

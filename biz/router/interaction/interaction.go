@@ -19,13 +19,13 @@ func Register(r *server.Hertz) {
 	root := r.Group("/", rootMw()...)
 	{
 		_comment := root.Group("/comment", _commentMw()...)
-		_comment.POST("/delete", append(_commentdeleteMw(), interaction.CommentDelete)...)
-		_comment.POST("/list", append(_commentlistMw(), interaction.CommentList)...)
+		_comment.DELETE("/delete", append(_commentdeleteMw(), interaction.CommentDelete)...)
+		_comment.GET("/list", append(_commentlistMw(), interaction.CommentList)...)
 		_comment.POST("/publish", append(_commentpublishMw(), interaction.CommentPublish)...)
 	}
 	{
 		_like := root.Group("/like", _likeMw()...)
 		_like.POST("/action", append(_likeactionMw(), interaction.LikeAction)...)
-		_like.POST("/list", append(_likelistMw(), interaction.LikeList)...)
+		_like.GET("/list", append(_likelistMw(), interaction.LikeList)...)
 	}
 }

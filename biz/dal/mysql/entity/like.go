@@ -8,3 +8,7 @@ type Like struct {
 	VideoID   string    `gorm:"uniqueIndex:idx_user_video;column:video_id;type:varchar(64)"`
 	CreatedAt time.Time `gorm:"column:created_at"`
 }
+
+func (Like) TableName() string {
+	return "likes"
+}

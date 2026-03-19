@@ -4,6 +4,7 @@ package video
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,11 +26,38 @@ import (
 // Publish 投稿
 // @router /videos/publish [POST]
 func Publish(ctx context.Context, c *app.RequestContext) {
+	hlog.CtxInfof(ctx, "开始处理投稿请求")
+
 	var req video.VideoPublishReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+
+	file, err := c.FormFile("data")
+	if err != nil {
+		hlog.CtxErrorf(ctx, "获取文件表单失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+	hlog.CtxInfof(ctx, "获取投稿文件成功, 文件名: %s, 大小: %d bytes", file.Filename, file.Size)
+
+	src, err := file.Open()
+	if err != nil {
+		hlog.CtxErrorf(ctx, "打开文件失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+	defer src.Close()
+
+	dataBytes, err := io.ReadAll(src)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "读取文件失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+	req.Data = dataBytes
 
 	token := string(c.GetHeader("Access-Token"))
 	if token == "" {
@@ -42,6 +70,7 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	userID := claims.UserID
+	hlog.CtxInfof(ctx, "投稿请求来自用户ID: %s", userID)
 
 	if len(req.Data) == 0 {
 		response.SendResponse(c, errno.ParamError, nil)
@@ -50,11 +79,12 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 	fileName := utils.GenerateID() + ".mp4"
 	filePath := filepath.Join("./static/videos", fileName)
 	if err := os.WriteFile(filePath, req.Data, 0644); err != nil {
-		hlog.CtxErrorf(ctx, "保存视频文件失败%v", err)
+		hlog.CtxErrorf(ctx, "保存视频文件失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
-	videoURL := "http:127.0.0.1:8888/static/videos/" + fileName
+	videoURL := "http://127.0.0.1:8888/static/videos/" + fileName // 修复 URL 格式
+	hlog.CtxInfof(ctx, "视频文件保存成功, 路径: %s", filePath)
 
 	now := time.Now()
 	newVideo := &entity.Video{
@@ -68,10 +98,14 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 		UpdatedAt:   now,
 	}
 	if err := mysql.CreateVideo(ctx, newVideo); err != nil {
-		hlog.CtxErrorf(ctx, "创建视频失败: %v", err)
+		hlog.CtxErrorf(ctx, "创建视频记录失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "视频记录创建成功, 视频ID: %s", newVideo.ID)
+
+	hlog.CtxInfof(ctx, "投稿处理完成, 用户ID: %s", userID)
+	response.SendResponse(c, errno.Success, nil)
 }
 
 // List 发布列表
@@ -79,9 +113,11 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 func List(ctx context.Context, c *app.RequestContext) {
 	var req video.VideoListReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始获取发布列表, 用户ID: %s, 页码: %d, 每页数量: %d", req.UserID, req.PageNum, req.PageSize)
 
 	videos, total, err := mysql.GetVideoByUserID(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
@@ -89,6 +125,7 @@ func List(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "查询到视频数量: %d, 总数: %d", len(videos), total)
 
 	items := make([]*video.VideoItemsResp, 0, len(videos))
 	for _, v := range videos {
@@ -113,6 +150,7 @@ func List(ctx context.Context, c *app.RequestContext) {
 		Total int32                   `json:"total"`
 	}
 
+	hlog.CtxInfof(ctx, "发布列表返回成功, 用户ID: %s", req.UserID)
 	response.SendResponse(c, errno.Success, videoListData{
 		Items: items,
 		Total: int32(total),
@@ -124,9 +162,11 @@ func List(ctx context.Context, c *app.RequestContext) {
 func Popular(ctx context.Context, c *app.RequestContext) {
 	var req video.VideoPopularReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始获取热门视频, 页码: %d, 每页数量: %d", req.PageNum, req.PageSize)
 
 	cacheKey := "popular:videos"
 
@@ -135,6 +175,7 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 	if err == nil {
 		var allItems []*video.VideoItemsResp
 		if json.Unmarshal([]byte(cached), &allItems) == nil {
+			hlog.CtxInfof(ctx, "命中缓存, 热门视频总数: %d", len(allItems))
 			// 内存分页
 			start := (req.PageNum - 1) * req.PageSize
 			end := start + req.PageSize
@@ -142,22 +183,25 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 				if int(end) > len(allItems) {
 					end = int32(len(allItems))
 				}
+				hlog.CtxInfof(ctx, "从缓存返回热门视频, 数量: %d", end-start)
 				response.SendResponse(c, errno.Success, allItems[start:end])
 				return
 			}
-			// 超出范围返回空切片
+			hlog.CtxInfof(ctx, "缓存数据超出范围, 返回空列表")
 			response.SendResponse(c, errno.Success, []*video.VideoItemsResp{})
 			return
 		}
 	}
 
 	// 缓存未命中，从数据库查询前100条热门视频
+	hlog.CtxInfof(ctx, "缓存未命中, 从数据库查询热门视频")
 	videos, err := mysql.GetPopularVideos(ctx, 1, 100)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "查询热门视频失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "从数据库查询到热门视频数量: %d", len(videos))
 
 	items := make([]*video.VideoItemsResp, 0, len(videos))
 	for _, v := range videos {
@@ -180,6 +224,7 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 	// 存入 Redis 缓存
 	if jsonData, err := json.Marshal(items); err == nil {
 		redis.RDB.Set(ctx, cacheKey, jsonData, 5*time.Minute)
+		hlog.CtxInfof(ctx, "热门视频缓存更新成功, 数量: %d", len(items))
 	}
 
 	start := (req.PageNum - 1) * req.PageSize
@@ -188,9 +233,11 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 		if int(end) > len(items) {
 			end = int32(len(items))
 		}
+		hlog.CtxInfof(ctx, "返回热门视频, 数量: %d", end-start)
 		response.SendResponse(c, errno.Success, items[start:end])
 		return
 	}
+	hlog.CtxInfof(ctx, "热门视频列表为空")
 	response.SendResponse(c, errno.Success, []*video.VideoItemsResp{})
 }
 
@@ -199,16 +246,19 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 func Search(ctx context.Context, c *app.RequestContext) {
 	var req video.VideoSearchReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "开始搜索视频, 关键词: %s, 页码: %d, 每页数量: %d", req.Keywords, req.PageNum, req.PageSize)
 
-	videos, total, err := mysql.SerachVideos(ctx, req.Keywords, req.PageNum, req.PageSize)
+	videos, total, err := mysql.SearchVideos(ctx, req.Keywords, req.PageNum, req.PageSize) // 注意函数名拼写
 	if err != nil {
 		hlog.CtxErrorf(ctx, "搜索视频失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "搜索到视频数量: %d, 总数: %d", len(videos), total)
 
 	items := make([]*video.VideoItemsResp, 0, len(videos))
 	for _, v := range videos {
@@ -233,6 +283,7 @@ func Search(ctx context.Context, c *app.RequestContext) {
 		Total int32                   `json:"total"`
 	}
 
+	hlog.CtxInfof(ctx, "搜索视频返回成功, 关键词: %s", req.Keywords)
 	response.SendResponse(c, errno.Success, videoSearchData{
 		Items: items,
 		Total: int32(total),

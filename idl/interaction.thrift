@@ -43,14 +43,22 @@ struct LikeListResp{
 }
 
 struct CommentPublishReq{
-
-    3:string video_id (api.form="video_id");
-    4:string comment_id (api.form="comment_id");
-    5:string content (api.form="content");
+    1:string video_id (api.form="video_id");
+    2:string comment_id (api.form="comment_id");
+    3:string content (api.form="content");
 }
 
 struct CommentPublishResp{
     1:base.BaseResp Base;
+}
+
+struct CommentItemResp {
+    1: string id;
+    2: string user_id;
+    3: string content;
+    4: string created_at;
+    5: string updated_at;
+    6: string deleted_at;
 }
 
 struct CommentListReq{
@@ -62,9 +70,9 @@ struct CommentListReq{
     6:string refresh_token (api.header="Refresh-Token");
 }
 
-struct CommentListResp{
-    1:base.BaseResp Base;
-    2:list<InteractionItemsResp> Items;
+struct CommentListResp {
+    1: base.BaseResp Base;
+    2: list<CommentItemResp> Items;
 }
 
 struct CommentDeleteReq{
@@ -80,8 +88,8 @@ struct CommentDeleteResp{
 
 service InteractionService{
     LikeActionResp LikeAction(1:LikeActionReq req) (api.post="/like/action");
-    LikeListResp LikeList(1:LikeListReq req) (api.post="/like/list");
+    LikeListResp LikeList(1:LikeListReq req) (api.get="/like/list");
     CommentPublishResp CommentPublish(1:CommentPublishReq req) (api.post="/comment/publish");
-    CommentListResp CommentList(1:CommentListReq req) (api.post="/comment/list");
-    CommentDeleteResp CommentDelete(1:CommentDeleteReq req) (api.post="/comment/delete");
+    CommentListResp CommentList(1:CommentListReq req) (api.get="/comment/list");
+    CommentDeleteResp CommentDelete(1:CommentDeleteReq req) (api.delete="/comment/delete");
 }

@@ -4,6 +4,7 @@ package interaction
 
 import (
 	"context"
+	"strings"
 	"time"
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/mysql/entity"
@@ -42,26 +43,30 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 
 	actionType := int32(0)
 	if req.ActionType == "1" {
-		actionType = int32(1)
+		actionType = 1
 	} else if req.ActionType == "2" {
-		actionType = int32(2)
+		actionType = 2
 	} else {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
 
-	if err := mysql.LikeAction(ctx, userID, req.VideoID, actionType); err != nil {
+	cleanVideoID := strings.Trim(req.VideoID, "\"")
+
+	if err := mysql.LikeAction(ctx, userID, cleanVideoID, actionType); err != nil {
 		hlog.CtxErrorf(ctx, "点赞操作失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
 
-	response.SendResponse(c, errno.Success, nil)
+	// 删除热门视频缓存
 	redis.RDB.Del(ctx, "popular:videos")
+
+	response.SendResponse(c, errno.Success, nil)
 }
 
 // LikeList 点赞列表
-// @router /like/list [POST]
+// @router /like/list [GET]
 func LikeList(ctx context.Context, c *app.RequestContext) {
 	var req interaction.LikeListReq
 	if err := c.BindAndValidate(&req); err != nil {
@@ -69,17 +74,63 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	videoIDs, _, err := mysql.GetUserLikedVideoIDs(ctx, req.UserID, req.PageNum, req.PageSize)
+	videoIDs, total, err := mysql.GetUserLikedVideoIDs(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "查询点赞列表失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
 
+	hlog.CtxInfof(ctx, "获取到点赞视频ID列表: %v, 总数: %d", videoIDs, total)
+
+	if len(videoIDs) == 0 {
+		response.SendResponse(c, errno.Success, []*interaction.InteractionItemsResp{})
+		return
+	}
+
+	cleanedIDs := make([]string, 0, len(videoIDs))
+	for _, id := range videoIDs {
+		cleanedIDs = append(cleanedIDs, strings.Trim(id, "\""))
+	}
+	hlog.CtxInfof(ctx, "清洗后的视频ID列表: %v", cleanedIDs)
+
+	videos, err := mysql.GetVideosByIDs(ctx, cleanedIDs)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "查询视频信息失败: %v", err)
+		response.SendResponse(c, errno.DBError, nil)
+		return
+	}
+	hlog.CtxInfof(ctx, "查询到视频数量: %d", len(videos))
+
+	videoMap := make(map[string]*entity.Video, len(videos))
+	for _, v := range videos {
+		videoMap[v.ID] = v
+	}
+
 	items := make([]*interaction.InteractionItemsResp, 0, len(videoIDs))
-	for _, videoID := range videoIDs {
+	for _, originalID := range videoIDs {
+		cleanID := strings.Trim(originalID, "\"")
+		v, ok := videoMap[cleanID]
+		if !ok {
+			items = append(items, &interaction.InteractionItemsResp{
+				ID: cleanID,
+			})
+			hlog.CtxInfof(ctx, "视频ID %s 不存在，仅返回ID", cleanID)
+			continue
+		}
 		items = append(items, &interaction.InteractionItemsResp{
-			ID: videoID,
+			ID:           v.ID,
+			UserID:       v.UserID,
+			VideoURL:     v.VideoURL,
+			CoverURL:     v.CoverURL,
+			Title:        v.Title,
+			Description:  v.Description,
+			VisitCount:   int32(v.VisitCount),
+			LikeCount:    int32(v.LikeCount),
+			CommentCount: int32(v.CommentCount),
+			CreatedAt:    v.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:    v.UpdatedAt.Format("2006-01-02 15:04:05"),
+			DeletedAt:    "",
 		})
 	}
 
@@ -125,7 +176,7 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 }
 
 // CommentList 评论列表
-// @router /comment/list [POST]
+// @router /comment/list [GET]
 func CommentList(ctx context.Context, c *app.RequestContext) {
 	var req interaction.CommentListReq
 	if err := c.BindAndValidate(&req); err != nil {
@@ -140,23 +191,23 @@ func CommentList(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	items := make([]*interaction.InteractionItemsResp, 0, len(comments))
-	for _, c := range comments {
-		items = append(items, &interaction.InteractionItemsResp{
-			ID:     c.ID,
-			UserID: c.UserID,
+	items := make([]*interaction.CommentItemResp, 0, len(comments))
+	for _, comment := range comments {
+		items = append(items, &interaction.CommentItemResp{
+			ID:        comment.ID,
+			UserID:    comment.UserID,
+			Content:   comment.Content,
+			CreatedAt: comment.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt: comment.UpdatedAt.Format("2006-01-02 15:04:05"),
+			DeletedAt: "",
 		})
 	}
 
-	resp := &interaction.CommentListResp{
-		Items: items,
-	}
-
-	response.SendResponse(c, errno.Success, resp)
+	response.SendResponse(c, errno.Success, items)
 }
 
 // CommentDelete 删除评论
-// @router /comment/delete [POST]
+// @router /comment/delete [DELETE]
 func CommentDelete(ctx context.Context, c *app.RequestContext) {
 	var req interaction.CommentDeleteReq
 	if err := c.BindAndValidate(&req); err != nil {

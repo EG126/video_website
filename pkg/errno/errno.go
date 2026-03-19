@@ -21,6 +21,7 @@ var (
 	TokenInvalid        = ErrNo{Code: 10006, Msg: "token无效"}
 	TokenExpired        = ErrNo{Code: 10007, Msg: "token过期"}
 	Forbidden           = ErrNo{Code: 10008, Msg: "禁止访问"}
+	VideoNotExist       = ErrNo{Code: 10009, Msg: "视频不存在"}
 	DBError             = ErrNo{Code: 20001, Msg: "数据库错误"}
 	FileTooLarge        = ErrNo{Code: 20002, Msg: "文件过大"}
 	FileTypeError       = ErrNo{Code: 20003, Msg: "文件类型错误"}

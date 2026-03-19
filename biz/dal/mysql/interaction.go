@@ -2,18 +2,21 @@ package mysql
 
 import (
 	"context"
+	"time"
 	"video_website/biz/dal/mysql/entity"
+	"video_website/pkg/utils"
 )
 
 func LikeAction(ctx context.Context, userID, videoID string, actionType int32) error {
-	if actionType == 1 { // 点赞
+	if actionType == 1 {
 		like := &entity.Like{
-			UserID:  userID,
-			VideoID: videoID,
+			ID:        utils.GenerateID(),
+			UserID:    userID,
+			VideoID:   videoID,
+			CreatedAt: time.Now(),
 		}
-		// FirstOrCreate:先查找记录，未找到时再创建
 		return DB.WithContext(ctx).FirstOrCreate(like, "user_id = ? AND video_id = ?", userID, videoID).Error
-	} else if actionType == 2 { // 取消点赞
+	} else if actionType == 2 {
 		return DB.WithContext(ctx).Where("user_id = ? AND video_id = ?", userID, videoID).Delete(&entity.Like{}).Error
 	}
 	return nil
@@ -38,6 +41,15 @@ func GetUserLikedVideoIDs(ctx context.Context, userID string, pageNum, pageSize 
 	return ids, total, nil
 }
 
+func GetVideosByIDs(ctx context.Context, videoIDs []string) ([]*entity.Video, error) {
+	if len(videoIDs) == 0 {
+		return []*entity.Video{}, nil
+	}
+	var videos []*entity.Video
+	err := DB.WithContext(ctx).Where("id IN ?", videoIDs).Find(&videos).Error
+	return videos, err
+}
+
 func CreateComment(ctx context.Context, userID, videoID string, comment *entity.Comment) error {
 	return DB.WithContext(ctx).Create(comment).Error
 }
@@ -55,5 +67,5 @@ func GetCommentsByVideoID(ctx context.Context, videoID string, pageNum, pageSize
 }
 
 func DeleteComment(ctx context.Context, commentID, userID string) error {
-	return DB.WithContext(ctx).Where("comment_id = ? AND user_id = ?", commentID, userID).Delete(&entity.Comment{}).Error
+	return DB.WithContext(ctx).Where("id = ? AND user_id = ?", commentID, userID).Delete(&entity.Comment{}).Error
 }

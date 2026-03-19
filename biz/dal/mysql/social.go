@@ -3,15 +3,17 @@ package mysql
 import (
 	"context"
 	"video_website/biz/dal/mysql/entity"
+	"video_website/pkg/utils"
 )
 
 func FollowAction(ctx context.Context, followerID, followingID string, actionType int32) error {
 	if actionType == 1 { // 关注
 		follow := &entity.Follow{
+			ID:          utils.GenerateID(),
 			FollowerID:  followerID,
 			FollowingID: followingID,
 		}
-		return DB.WithContext(ctx).FirstOrCreate(follow).Error
+		return DB.WithContext(ctx).FirstOrCreate(follow, "follower_id = ? AND following_id = ?", followerID, followingID).Error
 	} else if actionType == 2 { // 取消关注
 		return DB.WithContext(ctx).Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&entity.Follow{}).Error
 	}
@@ -21,7 +23,7 @@ func FollowAction(ctx context.Context, followerID, followingID string, actionTyp
 func GetFollowing(ctx context.Context, userID string, pageNum, pageSize int32) ([]string, int64, error) {
 	var follows []*entity.Follow
 	var total int64
-	db := DB.WithContext(ctx).Model(&entity.Follow{}).Where("following_id = ?", userID)
+	db := DB.WithContext(ctx).Model(&entity.Follow{}).Where("follower_id = ?", userID)
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -32,7 +34,7 @@ func GetFollowing(ctx context.Context, userID string, pageNum, pageSize int32) (
 	}
 	var ids []string
 	for _, f := range follows {
-		ids = append(ids, f.FollowerID)
+		ids = append(ids, f.FollowingID)
 	}
 	return ids, total, nil
 }
@@ -40,7 +42,7 @@ func GetFollowing(ctx context.Context, userID string, pageNum, pageSize int32) (
 func GetFollowers(ctx context.Context, userID string, pageNum, pageSize int32) ([]string, int64, error) {
 	var follows []*entity.Follow
 	var total int64
-	db := DB.WithContext(ctx).Where("follower_id = ?", userID)
+	db := DB.WithContext(ctx).Model(&entity.Follow{}).Where("following_id = ?", userID)
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -51,7 +53,7 @@ func GetFollowers(ctx context.Context, userID string, pageNum, pageSize int32) (
 	}
 	var ids []string
 	for _, f := range follows {
-		ids = append(ids, f.FollowingID)
+		ids = append(ids, f.FollowerID)
 	}
 	return ids, total, nil
 }

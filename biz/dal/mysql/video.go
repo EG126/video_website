@@ -2,7 +2,10 @@ package mysql
 
 import (
 	"context"
+	"errors"
 	"video_website/biz/dal/mysql/entity"
+
+	"gorm.io/gorm"
 )
 
 func CreateVideo(ctx context.Context, video *entity.Video) error {
@@ -28,7 +31,19 @@ func GetPopularVideos(ctx context.Context, pageNum, pageSize int32) ([]*entity.V
 	return videos, err
 }
 
-func SerachVideos(ctx context.Context, keyword string, pageNum, pageSize int32) ([]*entity.Video, int64, error) {
+func GetVideoByID(ctx context.Context, id string) (*entity.Video, error) {
+	var video entity.Video
+	err := DB.WithContext(ctx).Where("id = ?", id).First(&video).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &video, nil
+}
+
+func SearchVideos(ctx context.Context, keyword string, pageNum, pageSize int32) ([]*entity.Video, int64, error) {
 	var videos []*entity.Video
 	var total int64
 	db := DB.WithContext(ctx).Model(&entity.Video{}).Where("title LIKE ? OR description LIKE ?", "%"+keyword+"%", "%"+keyword+"%")

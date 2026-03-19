@@ -4,6 +4,7 @@ package social
 
 import (
 	"context"
+	"strings"
 	"video_website/biz/dal/mysql"
 	"video_website/pkg/errno"
 	"video_website/pkg/jwt"
@@ -15,14 +16,14 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
 
-// RelationAction 关注
-// @router /relation/action [POST]
 func RelationAction(ctx context.Context, c *app.RequestContext) {
 	var req social.RelationActionReq
 	if err := c.BindAndValidate(&req); err != nil {
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+
+	cleanToUserID := strings.Trim(req.ToUserID, "\"“”")
 
 	token := string(c.GetHeader("Access-Token"))
 	if token == "" {
@@ -36,7 +37,19 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 	}
 	followerID := claims.UserID
 
-	if err := mysql.FollowAction(ctx, followerID, req.ToUserID, req.ActionType); err != nil {
+	targetUser, err := mysql.GetUserByID(ctx, cleanToUserID)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "查询目标用户失败: %v", err)
+		response.SendResponse(c, errno.DBError, nil)
+		return
+	}
+	if targetUser == nil {
+		response.SendResponse(c, errno.UserNotExist, nil)
+		return
+	}
+	targetUserID := targetUser.ID
+
+	if err := mysql.FollowAction(ctx, followerID, targetUserID, req.ActionType); err != nil {
 		hlog.CtxErrorf(ctx, "关注操作失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return

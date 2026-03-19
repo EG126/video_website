@@ -50,3 +50,13 @@ func _relationactionMw() []app.HandlerFunc {
 	// your code...
 	return nil
 }
+
+func _likeactionMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
+
+func _likeMw() []app.HandlerFunc {
+	// your code...
+	return nil
+}
