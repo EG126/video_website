@@ -20,11 +20,12 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
 
-// LikeAction 点赞
+// LikeAction 点赞/取消点赞
 // @router /like/action [POST]
 func LikeAction(ctx context.Context, c *app.RequestContext) {
 	var req interaction.LikeActionReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -47,11 +48,13 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 	} else if req.ActionType == "2" {
 		actionType = 2
 	} else {
+		hlog.CtxErrorf(ctx, "无效的action_type: %s", req.ActionType)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
 
 	cleanVideoID := strings.Trim(req.VideoID, "\"")
+	hlog.CtxInfof(ctx, "点赞操作: userID=%s, videoID=%s, actionType=%d", userID, cleanVideoID, actionType)
 
 	if err := mysql.LikeAction(ctx, userID, cleanVideoID, actionType); err != nil {
 		hlog.CtxErrorf(ctx, "点赞操作失败: %v", err)
@@ -60,8 +63,13 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 	}
 
 	// 删除热门视频缓存
-	redis.RDB.Del(ctx, "popular:videos")
+	if _, err := redis.RDB.Del(ctx, "popular:videos").Result(); err != nil {
+		hlog.CtxErrorf(ctx, "删除热门视频缓存失败: %v", err)
+	} else {
+		hlog.CtxInfof(ctx, "热门视频缓存已清除")
+	}
 
+	hlog.CtxInfof(ctx, "点赞操作成功: userID=%s, videoID=%s", userID, cleanVideoID)
 	response.SendResponse(c, errno.Success, nil)
 }
 
@@ -70,9 +78,11 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 func LikeList(ctx context.Context, c *app.RequestContext) {
 	var req interaction.LikeListReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "点赞列表请求: userID=%s, page=%d, size=%d", req.UserID, req.PageNum, req.PageSize)
 
 	videoIDs, total, err := mysql.GetUserLikedVideoIDs(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
@@ -80,10 +90,10 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
-
 	hlog.CtxInfof(ctx, "获取到点赞视频ID列表: %v, 总数: %d", videoIDs, total)
 
 	if len(videoIDs) == 0 {
+		hlog.CtxInfof(ctx, "点赞列表为空")
 		response.SendResponse(c, errno.Success, []*interaction.InteractionItemsResp{})
 		return
 	}
@@ -112,10 +122,10 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 		cleanID := strings.Trim(originalID, "\"")
 		v, ok := videoMap[cleanID]
 		if !ok {
+			hlog.CtxInfof(ctx, "视频ID %s 不存在，仅返回ID", cleanID)
 			items = append(items, &interaction.InteractionItemsResp{
 				ID: cleanID,
 			})
-			hlog.CtxInfof(ctx, "视频ID %s 不存在，仅返回ID", cleanID)
 			continue
 		}
 		items = append(items, &interaction.InteractionItemsResp{
@@ -133,7 +143,7 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 			DeletedAt:    "",
 		})
 	}
-
+	hlog.CtxInfof(ctx, "构造点赞列表响应, 实际返回数量: %d", len(items))
 	response.SendResponse(c, errno.Success, items)
 }
 
@@ -142,6 +152,7 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 func CommentPublish(ctx context.Context, c *app.RequestContext) {
 	var req interaction.CommentPublishReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -157,6 +168,7 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	userID := claims.UserID
+	hlog.CtxInfof(ctx, "发表评论: userID=%s, videoID=%s, content=%s", userID, req.VideoID, req.Content)
 
 	comment := &entity.Comment{
 		ID:        utils.GenerateID(),
@@ -171,7 +183,7 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
-
+	hlog.CtxInfof(ctx, "发表评论成功: commentID=%s", comment.ID)
 	response.SendResponse(c, errno.Success, nil)
 }
 
@@ -180,16 +192,19 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 func CommentList(ctx context.Context, c *app.RequestContext) {
 	var req interaction.CommentListReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "评论列表请求: videoID=%s, page=%d, size=%d", req.VideoID, req.PageNum, req.PageSize)
 
-	comments, _, err := mysql.GetCommentsByVideoID(ctx, req.VideoID, req.PageNum, req.PageSize)
+	comments, total, err := mysql.GetCommentsByVideoID(ctx, req.VideoID, req.PageNum, req.PageSize)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "查询评论列表失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "查询到评论数量: %d, 总数: %d", len(comments), total)
 
 	items := make([]*interaction.CommentItemResp, 0, len(comments))
 	for _, comment := range comments {
@@ -202,7 +217,7 @@ func CommentList(ctx context.Context, c *app.RequestContext) {
 			DeletedAt: "",
 		})
 	}
-
+	hlog.CtxInfof(ctx, "构造评论列表响应, 实际返回数量: %d", len(items))
 	response.SendResponse(c, errno.Success, items)
 }
 
@@ -211,6 +226,7 @@ func CommentList(ctx context.Context, c *app.RequestContext) {
 func CommentDelete(ctx context.Context, c *app.RequestContext) {
 	var req interaction.CommentDeleteReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -226,12 +242,13 @@ func CommentDelete(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	userID := claims.UserID
+	hlog.CtxInfof(ctx, "删除评论: commentID=%s, userID=%s", req.CommentID, userID)
 
 	if err := mysql.DeleteComment(ctx, req.CommentID, userID); err != nil {
 		hlog.CtxErrorf(ctx, "删除评论失败: %v", err)
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
-
+	hlog.CtxInfof(ctx, "删除评论成功: commentID=%s", req.CommentID)
 	response.SendResponse(c, errno.Success, nil)
 }

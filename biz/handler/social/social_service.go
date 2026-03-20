@@ -16,14 +16,18 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
 
+// RelationAction 关注/取关
+// @router /relation/action [POST]
 func RelationAction(ctx context.Context, c *app.RequestContext) {
 	var req social.RelationActionReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
 
 	cleanToUserID := strings.Trim(req.ToUserID, "\"“”")
+	hlog.CtxInfof(ctx, "关注操作请求: 目标用户ID(清洗前)=%s, 清洗后=%s, 操作类型=%d", req.ToUserID, cleanToUserID, req.ActionType)
 
 	token := string(c.GetHeader("Access-Token"))
 	if token == "" {
@@ -36,6 +40,7 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	followerID := claims.UserID
+	hlog.CtxInfof(ctx, "发起用户ID: %s", followerID)
 
 	targetUser, err := mysql.GetUserByID(ctx, cleanToUserID)
 	if err != nil {
@@ -54,7 +59,7 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
-
+	hlog.CtxInfof(ctx, "关注操作成功: 用户 %s %s 用户 %s", followerID, map[int32]string{1: "关注", 2: "取消关注"}[req.ActionType], targetUserID)
 	response.SendResponse(c, errno.Success, nil)
 }
 
@@ -63,9 +68,11 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 func FollowingList(ctx context.Context, c *app.RequestContext) {
 	var req social.FollowingListReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "关注列表请求: user_id=%s, page=%d, size=%d", req.UserID, req.PageNum, req.PageSize)
 
 	followingIDs, total, err := mysql.GetFollowing(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
@@ -73,6 +80,7 @@ func FollowingList(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "查询到关注ID数量: %d, 总数: %d", len(followingIDs), total)
 
 	items := make([]*social.SocialItemsResp, 0, len(followingIDs))
 	for _, id := range followingIDs {
@@ -86,12 +94,12 @@ func FollowingList(ctx context.Context, c *app.RequestContext) {
 			AvatarURL: u.AvatarURL,
 		})
 	}
+	hlog.CtxInfof(ctx, "构造关注列表响应, 实际返回数量: %d", len(items))
 
 	type followingData struct {
 		Items []*social.SocialItemsResp `json:"items"`
 		Total int32                     `json:"total"`
 	}
-
 	response.SendResponse(c, errno.Success, followingData{
 		Items: items,
 		Total: int32(total),
@@ -103,9 +111,11 @@ func FollowingList(ctx context.Context, c *app.RequestContext) {
 func FollowerList(ctx context.Context, c *app.RequestContext) {
 	var req social.FollowerListReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "粉丝列表请求: user_id=%s, page=%d, size=%d", req.UserID, req.PageNum, req.PageSize)
 
 	followerIDs, total, err := mysql.GetFollowers(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
@@ -113,6 +123,7 @@ func FollowerList(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "查询到粉丝ID数量: %d, 总数: %d", len(followerIDs), total)
 
 	items := make([]*social.SocialItemsResp, 0, len(followerIDs))
 	for _, id := range followerIDs {
@@ -126,12 +137,12 @@ func FollowerList(ctx context.Context, c *app.RequestContext) {
 			AvatarURL: u.AvatarURL,
 		})
 	}
+	hlog.CtxInfof(ctx, "构造粉丝列表响应, 实际返回数量: %d", len(items))
 
 	type followerData struct {
 		Items []*social.SocialItemsResp `json:"items"`
 		Total int32                     `json:"total"`
 	}
-
 	response.SendResponse(c, errno.Success, followerData{
 		Items: items,
 		Total: int32(total),
@@ -143,9 +154,11 @@ func FollowerList(ctx context.Context, c *app.RequestContext) {
 func FriendsList(ctx context.Context, c *app.RequestContext) {
 	var req social.FriendsListReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "好友列表请求: page=%d, size=%d", req.PageNum, req.PageSize)
 
 	token := string(c.GetHeader("Access-Token"))
 	if token == "" {
@@ -158,6 +171,7 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	userID := claims.UserID
+	hlog.CtxInfof(ctx, "发起用户ID: %s", userID)
 
 	friendIDs, total, err := mysql.GetFriends(ctx, userID, req.PageNum, req.PageSize)
 	if err != nil {
@@ -165,6 +179,7 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 		response.SendResponse(c, errno.DBError, nil)
 		return
 	}
+	hlog.CtxInfof(ctx, "查询到好友ID数量: %d, 总数: %d", len(friendIDs), total)
 
 	items := make([]*social.SocialItemsResp, 0, len(friendIDs))
 	for _, id := range friendIDs {
@@ -178,12 +193,12 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 			AvatarURL: u.AvatarURL,
 		})
 	}
+	hlog.CtxInfof(ctx, "构造好友列表响应, 实际返回数量: %d", len(items))
 
 	type friendsData struct {
 		Items []*social.SocialItemsResp `json:"items"`
 		Total int32                     `json:"total"`
 	}
-
 	response.SendResponse(c, errno.Success, friendsData{
 		Items: items,
 		Total: int32(total),

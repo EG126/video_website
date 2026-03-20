@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"log"
 	"time"
 	"video_website/pkg/errno"
 
@@ -50,7 +49,6 @@ func ParseToken(tokenString string) (*Claims, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {
-		log.Printf("ParseToken error: %v", err) // 添加此行
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, errno.TokenExpired
 		}

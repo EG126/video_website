@@ -28,6 +28,7 @@ import (
 func Register(ctx context.Context, c *app.RequestContext) {
 	var req user.UserRegisterReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -75,6 +76,7 @@ func Register(ctx context.Context, c *app.RequestContext) {
 func Login(ctx context.Context, c *app.RequestContext) {
 	var req user.UserLoginReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -146,6 +148,7 @@ func Login(ctx context.Context, c *app.RequestContext) {
 func Info(ctx context.Context, c *app.RequestContext) {
 	var req user.UserInfoReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -181,6 +184,7 @@ func Info(ctx context.Context, c *app.RequestContext) {
 func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 	var req user.UserAvatarReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
@@ -262,6 +266,7 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 func Refresh(ctx context.Context, c *app.RequestContext) {
 	var req user.RefreshReq
 	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
 		response.SendResponse(c, errno.ParamError, nil)
 		return
 	}
