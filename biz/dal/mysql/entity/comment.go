@@ -15,3 +15,7 @@ type Comment struct {
 	UpdatedAt time.Time      `gorm:"column:updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at"`
 }
+
+func (Comment) TableName() string {
+	return "comments"
+}
