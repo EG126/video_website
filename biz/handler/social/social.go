@@ -26,11 +26,6 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
 	if err := socialService.RelationAction(ctx, userID, req.ToUserID, req.ActionType); err != nil {
 		response.SendResponse(c, err, nil)
 		return
@@ -102,11 +97,6 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
 	items, total, err := socialService.FriendsList(ctx, userID, req.PageNum, req.PageSize)
 	if err != nil {
 		response.SendResponse(c, err, nil)

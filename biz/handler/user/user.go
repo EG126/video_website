@@ -91,11 +91,6 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
 	data, err := userService.UploadAvatar(ctx, c, userID)
 	if err != nil {
 		response.SendResponse(c, err, nil)
