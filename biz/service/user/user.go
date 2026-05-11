@@ -36,7 +36,7 @@ func Register(ctx context.Context, username, password string) error {
 	hashedPwd, err := bcrypt.HashPassword(password)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "密码加密失败: %v", err)
-		return errno.DBError
+		return errno.EncryptError
 	}
 
 	now := time.Now()
@@ -82,13 +82,13 @@ func Login(ctx context.Context, username, password string) (*LoginResult, error)
 	accessToken, err := jwt.GenerateAccessToken(u.ID)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "生成access token失败: %v", err)
-		return nil, errno.DBError
+		return nil, errno.TokenError
 	}
 
 	refreshToken, err := jwt.GenerateRefreshToken()
 	if err != nil {
 		hlog.CtxErrorf(ctx, "生成refresh token失败: %v", err)
-		return nil, errno.DBError
+		return nil, errno.TokenError
 	}
 
 	redisKey := "refresh:" + refreshToken
@@ -162,7 +162,7 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext, userID string) ([]
 	filePath := filepath.Join("./static/avatars", fileName)
 	if err := os.WriteFile(filePath, dataBytes, 0644); err != nil {
 		hlog.CtxErrorf(ctx, "保存头像失败: %v", err)
-		return nil, errno.DBError
+		return nil, errno.FileError
 	}
 	avatarURL := "http://127.0.0.1:8888/static/avatars/" + fileName
 	hlog.CtxInfof(ctx, "头像文件保存成功, 路径: %s", filePath)
@@ -211,13 +211,13 @@ func Refresh(ctx context.Context, refreshToken string) (*RefreshResult, error) {
 	newAccessToken, err := jwt.GenerateAccessToken(userID)
 	if err != nil {
 		hlog.CtxErrorf(ctx, "生成access token失败: %v", err)
-		return nil, errno.DBError
+		return nil, errno.TokenError
 	}
 
 	newRefreshToken, err := jwt.GenerateRefreshToken()
 	if err != nil {
 		hlog.CtxErrorf(ctx, "生成refresh token失败: %v", err)
-		return nil, errno.DBError
+		return nil, errno.TokenError
 	}
 
 	redis.RDB.Del(ctx, redisKey)

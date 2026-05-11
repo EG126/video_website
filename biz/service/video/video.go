@@ -50,7 +50,7 @@ func Publish(ctx context.Context, c *app.RequestContext, userID, title, descript
 	filePath := filepath.Join("./static/videos", fileName)
 	if err := os.WriteFile(filePath, dataBytes, 0644); err != nil {
 		hlog.CtxErrorf(ctx, "保存视频文件失败: %v", err)
-		return errno.DBError
+		return errno.FileError
 	}
 	videoURL := "http://127.0.0.1:8888/static/videos/" + fileName
 	hlog.CtxInfof(ctx, "视频文件保存成功, 路径: %s", filePath)

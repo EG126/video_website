@@ -26,11 +26,6 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
 	if err := videoService.Publish(ctx, c, userID, req.Title, req.Description); err != nil {
 		response.SendResponse(c, err, nil)
 		return

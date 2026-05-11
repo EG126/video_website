@@ -26,11 +26,7 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
+	
 	if err := interactionService.LikeAction(ctx, userID, req.VideoID, req.ActionType); err != nil {
 		response.SendResponse(c, err, nil)
 		return
@@ -69,11 +65,6 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
 	if err := interactionService.CommentPublish(ctx, userID, req.VideoID, req.Content); err != nil {
 		response.SendResponse(c, err, nil)
 		return
@@ -112,11 +103,6 @@ func CommentDelete(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if userID == "" {
-		response.SendResponse(c, errno.Unauthorized, nil)
-		return
-	}
-
 	if err := interactionService.CommentDelete(ctx, req.CommentID, userID); err != nil {
 		response.SendResponse(c, err, nil)
 		return
