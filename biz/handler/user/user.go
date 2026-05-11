@@ -4,11 +4,8 @@ package user
 
 import (
 	"context"
-	"io"
-	"os"
-	"time"
+	"video_website/biz/middleware/jwt"
 	"video_website/pkg/errno"
-	"video_website/pkg/jwt"
 	"video_website/pkg/response"
 
 	user "video_website/biz/model/user"
@@ -93,50 +90,13 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	file, err := c.FormFile("data")
-	if err != nil {
-		hlog.CtxErrorf(ctx, "获取文件表单失败: %v", err)
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-
-	src, err := file.Open()
-	if err != nil {
-		hlog.CtxErrorf(ctx, "打开文件失败: %v", err)
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-	defer src.Close()
-
-	dataBytes, err := io.ReadAll(src)
-	if err != nil {
-		hlog.CtxErrorf(ctx, "读取文件失败: %v", err)
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-	hlog.CtxInfof(ctx, "获取头像文件成功, 文件名: %s, 大小: %d bytes", file.Filename, file.Size)
-
-	token := string(c.GetHeader("Access-token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
-	userID := claims.UserID
 
-	fileName := userID + "_" + time.Now().Format("20060102150405") + ".jpg"
-	filePath := "./static/avatars/" + fileName
-	if err := os.WriteFile(filePath, dataBytes, 0644); err != nil {
-		hlog.CtxErrorf(ctx, "保存头像失败: %v", err)
-		response.SendResponse(c, errno.DBError, nil)
-		return
-	}
-
-	data, err := userService.UploadAvatar(ctx, userID, dataBytes)
+	data, err := userService.UploadAvatar(ctx, c, userID)
 	if err != nil {
 		response.SendResponse(c, err, nil)
 		return

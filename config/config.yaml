@@ -1,5 +1,5 @@
 server:
-  address: ":8888"
+  address: "127.0.0.1:8888"
 
 mysql:
   dsn: "root:forEG0630@tcp(127.0.0.1:3306)/video_website?charset=utf8mb4&parseTime=True&loc=Local"
@@ -7,7 +7,7 @@ mysql:
 jwt:
   secret: "secret"
 
-stitic:
+static:
   base_url: "http://localhost:8888/static"
   upload_dir: "./static"
 

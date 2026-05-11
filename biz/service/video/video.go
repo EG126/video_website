@@ -2,6 +2,9 @@ package video
 
 import (
 	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"time"
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/mysql/entity"
@@ -11,12 +14,46 @@ import (
 
 	video "video_website/biz/model/video"
 
+	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/cloudwego/hertz/pkg/common/json"
 )
 
-func Publish(ctx context.Context, userID, title, description, videoURL string) error {
+func Publish(ctx context.Context, c *app.RequestContext, userID, title, description string) error {
 	hlog.CtxInfof(ctx, "开始处理投稿请求, 用户ID: %s", userID)
+
+	file, err := c.FormFile("data")
+	if err != nil {
+		hlog.CtxErrorf(ctx, "获取文件表单失败: %v", err)
+		return errno.ParamError
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		hlog.CtxErrorf(ctx, "打开文件失败: %v", err)
+		return errno.ParamError
+	}
+	defer src.Close()
+
+	dataBytes, err := io.ReadAll(src)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "读取文件失败: %v", err)
+		return errno.ParamError
+	}
+	hlog.CtxInfof(ctx, "获取投稿文件成功, 文件名: %s, 大小: %d bytes", file.Filename, file.Size)
+
+	if len(dataBytes) == 0 {
+		return errno.ParamError
+	}
+
+	fileName := utils.GenerateID() + ".mp4"
+	filePath := filepath.Join("./static/videos", fileName)
+	if err := os.WriteFile(filePath, dataBytes, 0644); err != nil {
+		hlog.CtxErrorf(ctx, "保存视频文件失败: %v", err)
+		return errno.DBError
+	}
+	videoURL := "http://127.0.0.1:8888/static/videos/" + fileName
+	hlog.CtxInfof(ctx, "视频文件保存成功, 路径: %s", filePath)
 
 	now := time.Now()
 	newVideo := &entity.Video{

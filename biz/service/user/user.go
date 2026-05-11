@@ -2,6 +2,9 @@ package user
 
 import (
 	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"time"
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/mysql/entity"
@@ -13,6 +16,7 @@ import (
 
 	user "video_website/biz/model/user"
 
+	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	redis2 "github.com/redis/go-redis/v9"
 )
@@ -131,11 +135,35 @@ func Info(ctx context.Context, userID string) ([]*user.UserDataResp, error) {
 	}}, nil
 }
 
-func UploadAvatar(ctx context.Context, userID string, data []byte) ([]*user.UserDataResp, error) {
-	hlog.CtxInfof(ctx, "开始处理上传头像请求")
+func UploadAvatar(ctx context.Context, c *app.RequestContext, userID string) ([]*user.UserDataResp, error) {
+	hlog.CtxInfof(ctx, "开始处理上传头像请求, 用户ID: %s", userID)
+
+	file, err := c.FormFile("data")
+	if err != nil {
+		hlog.CtxErrorf(ctx, "获取文件表单失败: %v", err)
+		return nil, errno.ParamError
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		hlog.CtxErrorf(ctx, "打开文件失败: %v", err)
+		return nil, errno.ParamError
+	}
+	defer src.Close()
+
+	dataBytes, err := io.ReadAll(src)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "读取文件失败: %v", err)
+		return nil, errno.ParamError
+	}
+	hlog.CtxInfof(ctx, "获取头像文件成功, 文件名: %s, 大小: %d bytes", file.Filename, file.Size)
 
 	fileName := userID + "_" + time.Now().Format("20060102150405") + ".jpg"
-	filePath := "./static/avatars/" + fileName
+	filePath := filepath.Join("./static/avatars", fileName)
+	if err := os.WriteFile(filePath, dataBytes, 0644); err != nil {
+		hlog.CtxErrorf(ctx, "保存头像失败: %v", err)
+		return nil, errno.DBError
+	}
 	avatarURL := "http://127.0.0.1:8888/static/avatars/" + fileName
 	hlog.CtxInfof(ctx, "头像文件保存成功, 路径: %s", filePath)
 

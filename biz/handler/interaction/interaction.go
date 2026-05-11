@@ -4,8 +4,8 @@ package interaction
 
 import (
 	"context"
+	"video_website/biz/middleware/jwt"
 	"video_website/pkg/errno"
-	"video_website/pkg/jwt"
 	"video_website/pkg/response"
 
 	interaction "video_website/biz/model/interaction"
@@ -25,18 +25,13 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	token := string(c.GetHeader("Access-Token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
 
-	if err := interactionService.LikeAction(ctx, claims.UserID, req.VideoID, req.ActionType); err != nil {
+	if err := interactionService.LikeAction(ctx, userID, req.VideoID, req.ActionType); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -73,18 +68,13 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	token := string(c.GetHeader("Access-Token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
 
-	if err := interactionService.CommentPublish(ctx, claims.UserID, req.VideoID, req.Content); err != nil {
+	if err := interactionService.CommentPublish(ctx, userID, req.VideoID, req.Content); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -121,18 +111,13 @@ func CommentDelete(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	token := string(c.GetHeader("Access-Token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
 
-	if err := interactionService.CommentDelete(ctx, req.CommentID, claims.UserID); err != nil {
+	if err := interactionService.CommentDelete(ctx, req.CommentID, userID); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}
