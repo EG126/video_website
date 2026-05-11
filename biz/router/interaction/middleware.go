@@ -3,45 +3,39 @@
 package interaction
 
 import (
+	"video_website/biz/middleware/jwt"
+
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
 func rootMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }
 
 func _commentMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }
 
 func _commentdeleteMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _commentlistMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }
 
 func _commentpublishMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _likeMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }
 
 func _likeactionMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _likelistMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }

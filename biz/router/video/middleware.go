@@ -3,6 +3,8 @@
 package video
 
 import (
+	"video_website/biz/middleware/jwt"
+
 	"github.com/cloudwego/hertz/pkg/app"
 )
 
@@ -27,8 +29,7 @@ func _popularMw() []app.HandlerFunc {
 }
 
 func _publishMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _searchMw() []app.HandlerFunc {

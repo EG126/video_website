@@ -13,8 +13,7 @@ func InitSnowflake(startTime string, machineID int64) error {
 	if err != nil {
 		return err
 	}
-	//将解析出的时间转换成毫秒级时间戳，并赋值给snowflake.Epoch(一个库提供的全局变量）
-	snowflake.Epoch = st.UnixNano()
+	snowflake.Epoch = st.UnixMilli()
 	node, err = snowflake.NewNode(machineID)
 	return err
 }

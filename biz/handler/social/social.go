@@ -4,8 +4,8 @@ package social
 
 import (
 	"context"
+	"video_website/biz/middleware/jwt"
 	"video_website/pkg/errno"
-	"video_website/pkg/jwt"
 	"video_website/pkg/response"
 
 	social "video_website/biz/model/social"
@@ -25,18 +25,13 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	token := string(c.GetHeader("Access-Token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
 
-	if err := socialService.RelationAction(ctx, claims.UserID, req.ToUserID, req.ActionType); err != nil {
+	if err := socialService.RelationAction(ctx, userID, req.ToUserID, req.ActionType); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -106,18 +101,13 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	token := string(c.GetHeader("Access-Token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
 
-	items, total, err := socialService.FriendsList(ctx, claims.UserID, req.PageNum, req.PageSize)
+	items, total, err := socialService.FriendsList(ctx, userID, req.PageNum, req.PageSize)
 	if err != nil {
 		response.SendResponse(c, err, nil)
 		return

@@ -5,6 +5,7 @@ package main
 import (
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/redis"
+	"video_website/biz/router"
 	"video_website/config"
 	"video_website/pkg/jwt"
 	"video_website/pkg/utils"
@@ -32,6 +33,9 @@ func main() {
 
 	h := server.Default(server.WithHostPorts(config.Conf.Server.Address))
 
-	register(h)
+	h.Static("/static", "./")
+
+	router.GeneratedRegister(h)
+
 	h.Spin()
 }

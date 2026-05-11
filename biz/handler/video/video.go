@@ -4,13 +4,9 @@ package video
 
 import (
 	"context"
-	"io"
-	"os"
-	"path/filepath"
+	"video_website/biz/middleware/jwt"
 	"video_website/pkg/errno"
-	"video_website/pkg/jwt"
 	"video_website/pkg/response"
-	"video_website/pkg/utils"
 
 	video "video_website/biz/model/video"
 	videoService "video_website/biz/service/video"
@@ -22,8 +18,6 @@ import (
 // Publish 投稿
 // @router /videos/publish [POST]
 func Publish(ctx context.Context, c *app.RequestContext) {
-	hlog.CtxInfof(ctx, "开始处理投稿请求")
-
 	var req video.VideoPublishReq
 	if err := c.BindAndValidate(&req); err != nil {
 		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
@@ -31,55 +25,13 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	file, err := c.FormFile("data")
-	if err != nil {
-		hlog.CtxErrorf(ctx, "获取文件表单失败: %v", err)
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-	hlog.CtxInfof(ctx, "获取投稿文件成功, 文件名: %s, 大小: %d bytes", file.Filename, file.Size)
-
-	src, err := file.Open()
-	if err != nil {
-		hlog.CtxErrorf(ctx, "打开文件失败: %v", err)
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-	defer src.Close()
-
-	dataBytes, err := io.ReadAll(src)
-	if err != nil {
-		hlog.CtxErrorf(ctx, "读取文件失败: %v", err)
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-
-	token := string(c.GetHeader("Access-Token"))
-	if token == "" {
+	userID := jwt.GetUserID(ctx, c)
+	if userID == "" {
 		response.SendResponse(c, errno.Unauthorized, nil)
 		return
 	}
-	claims, err := jwt.ParseToken(token)
-	if err != nil {
-		response.SendResponse(c, err, nil)
-		return
-	}
-	userID := claims.UserID
 
-	if len(dataBytes) == 0 {
-		response.SendResponse(c, errno.ParamError, nil)
-		return
-	}
-	fileName := utils.GenerateID() + ".mp4"
-	filePath := filepath.Join("./static/videos", fileName)
-	if err := os.WriteFile(filePath, dataBytes, 0644); err != nil {
-		hlog.CtxErrorf(ctx, "保存视频文件失败: %v", err)
-		response.SendResponse(c, errno.DBError, nil)
-		return
-	}
-	videoURL := "http://127.0.0.1:8888/static/videos/" + fileName
-
-	if err := videoService.Publish(ctx, userID, req.Title, req.Description, videoURL); err != nil {
+	if err := videoService.Publish(ctx, c, userID, req.Title, req.Description); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}
