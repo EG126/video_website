@@ -21,7 +21,7 @@ func _commentdeleteMw() []app.HandlerFunc {
 }
 
 func _commentlistMw() []app.HandlerFunc {
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _commentpublishMw() []app.HandlerFunc {
@@ -37,5 +37,5 @@ func _likeactionMw() []app.HandlerFunc {
 }
 
 func _likelistMw() []app.HandlerFunc {
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }

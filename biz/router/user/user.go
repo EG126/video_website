@@ -18,6 +18,14 @@ func Register(r *server.Hertz) {
 
 	root := r.Group("/", rootMw()...)
 	{
+		_auth := root.Group("/auth", _authMw()...)
+		{
+			_mfa := _auth.Group("/mfa", _mfaMw()...)
+			_mfa.POST("/bind", append(_bindmfaMw(), user.BindMFA)...)
+			_mfa.GET("/qrcode", append(_getmfaMw(), user.GetMFA)...)
+		}
+	}
+	{
 		_user := root.Group("/user", _userMw()...)
 		_user.GET("/info", append(_infoMw(), user.Info)...)
 		_user.POST("/login", append(_loginMw(), user.Login)...)

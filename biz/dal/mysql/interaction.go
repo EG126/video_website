@@ -22,6 +22,21 @@ func LikeAction(ctx context.Context, userID, videoID string, actionType int32) e
 	return nil
 }
 
+func CommentLikeAction(ctx context.Context, userID, commentID string, actionType int32) error {
+	if actionType == 1 {
+		like := &entity.CommentLike{
+			ID:        utils.GenerateID(),
+			UserID:    userID,
+			CommentID: commentID,
+			CreatedAt: time.Now(),
+		}
+		return DB.WithContext(ctx).FirstOrCreate(like, "user_id = ? AND comment_id = ?", userID, commentID).Error
+	} else if actionType == 2 {
+		return DB.WithContext(ctx).Where("user_id = ? AND comment_id = ?", userID, commentID).Delete(&entity.CommentLike{}).Error
+	}
+	return nil
+}
+
 func GetUserLikedVideoIDs(ctx context.Context, userID string, pageNum, pageSize int32) ([]string, int64, error) {
 	var likes []*entity.Like
 	var total int64
@@ -51,6 +66,10 @@ func GetVideosByIDs(ctx context.Context, videoIDs []string) ([]*entity.Video, er
 }
 
 func CreateComment(ctx context.Context, userID, videoID string, comment *entity.Comment) error {
+	return DB.WithContext(ctx).Create(comment).Error
+}
+
+func CreateCommentReply(ctx context.Context, comment *entity.Comment) error {
 	return DB.WithContext(ctx).Create(comment).Error
 }
 

@@ -26,8 +26,8 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	
-	if err := interactionService.LikeAction(ctx, userID, req.VideoID, req.ActionType); err != nil {
+
+	if err := interactionService.LikeAction(ctx, userID, req.VideoID, req.CommentID, req.ActionType); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -65,7 +65,7 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 	}
 
 	userID := jwt.GetUserID(ctx, c)
-	if err := interactionService.CommentPublish(ctx, userID, req.VideoID, req.Content); err != nil {
+	if err := interactionService.CommentPublish(ctx, userID, req.VideoID, req.CommentID, req.Content); err != nil {
 		response.SendResponse(c, err, nil)
 		return
 	}

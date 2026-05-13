@@ -25,6 +25,8 @@ var (
 	VideoNotExist    = ErrNo{Code: 10010, Msg: "视频不存在"}
 	CommentNotExist  = ErrNo{Code: 10011, Msg: "评论不存在"}
 	RelationNotExist = ErrNo{Code: 10012, Msg: "关系不存在"}
+	MFARequired      = ErrNo{Code: 10013, Msg: "需要MFA验证码"}
+	MFAError         = ErrNo{Code: 10014, Msg: "MFA验证码错误"}
 
 	DBError             = ErrNo{Code: 20001, Msg: "数据库错误"}
 	FileTooLarge        = ErrNo{Code: 20002, Msg: "文件过大"}

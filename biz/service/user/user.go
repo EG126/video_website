@@ -1,7 +1,10 @@
 package user
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,6 +21,8 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/hlog"
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 	redis2 "github.com/redis/go-redis/v9"
 )
 
@@ -63,7 +68,7 @@ type LoginResult struct {
 	RefreshToken string
 }
 
-func Login(ctx context.Context, username, password string) (*LoginResult, error) {
+func Login(ctx context.Context, username, password, code string) (*LoginResult, error) {
 	hlog.CtxInfof(ctx, "开始处理登录请求, 用户名: %s", username)
 
 	u, err := mysql.GetUserByUsername(ctx, username)
@@ -77,6 +82,17 @@ func Login(ctx context.Context, username, password string) (*LoginResult, error)
 
 	if !bcrypt.CheckPasswordHash(password, u.Password) {
 		return nil, errno.PasswordError
+	}
+
+	if u.MFASecret != "" {
+		if code == "" {
+			hlog.CtxErrorf(ctx, "用户已绑定MFA，但未提供验证码")
+			return nil, errno.MFARequired
+		}
+		if !totp.Validate(code, u.MFASecret) {
+			hlog.CtxErrorf(ctx, "MFA验证码错误")
+			return nil, errno.MFAError
+		}
 	}
 
 	accessToken, err := jwt.GenerateAccessToken(u.ID)
@@ -235,4 +251,86 @@ func Refresh(ctx context.Context, refreshToken string) (*RefreshResult, error) {
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
 	}, nil
+}
+
+type GetMFAResult struct {
+	Secret string
+	Qrcode string
+}
+
+func GetMFA(ctx context.Context, userID string) (*GetMFAResult, error) {
+	hlog.CtxInfof(ctx, "开始处理获取MFA二维码请求, 用户ID: %s", userID)
+
+	u, err := mysql.GetUserByID(ctx, userID)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "查询用户失败: %v", err)
+		return nil, errno.DBError
+	}
+	if u == nil {
+		return nil, errno.UserNotExist
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "VideoWebsite",
+		AccountName: u.Username,
+		Period:      30,
+		Digits:      otp.DigitsSix,
+		Algorithm:   otp.AlgorithmSHA1,
+	})
+	if err != nil {
+		hlog.CtxErrorf(ctx, "生成MFA密钥失败: %v", err)
+		return nil, errno.InternalServerError
+	}
+
+	// 存储MFA密钥到Redis供后续验证使用
+	mfaKey := "mfa:" + userID
+	if err := redis.RDB.Set(ctx, mfaKey, key.Secret(), 7*24*time.Hour).Err(); err != nil {
+		hlog.CtxErrorf(ctx, "存储MFA密钥失败: %v", err)
+		return nil, errno.RedisError
+	}
+	hlog.CtxInfof(ctx, "MFA密钥已存储到Redis, 用户ID: %s", userID)
+
+	qrCodeImage, err := key.Image(200, 200)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "生成二维码图片失败: %v", err)
+		return nil, errno.InternalServerError
+	}
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, qrCodeImage); err != nil {
+		hlog.CtxErrorf(ctx, "编码二维码图片失败: %v", err)
+		return nil, errno.InternalServerError
+	}
+
+	qrcodeBase64 := base64.StdEncoding.EncodeToString(buf.Bytes())
+	qrcodeURL := "data:image/png;base64," + qrcodeBase64
+
+	hlog.CtxInfof(ctx, "获取MFA二维码成功, 用户ID: %s", userID)
+	return &GetMFAResult{
+		Secret: key.Secret(),
+		Qrcode: qrcodeURL,
+	}, nil
+}
+
+func BindMFA(ctx context.Context, userID, code, secret string) error {
+	hlog.CtxInfof(ctx, "开始处理绑定MFA请求, 用户ID: %s", userID)
+
+	if !totp.Validate(code, secret) {
+		hlog.CtxErrorf(ctx, "MFA验证码验证失败")
+		return errno.MFAError
+	}
+
+	if err := mysql.UpdateUserMFA(ctx, userID, secret); err != nil {
+		hlog.CtxErrorf(ctx, "更新用户MFA信息失败: %v", err)
+		return errno.DBError
+	}
+
+	redisKey := "mfa:" + userID
+	if err := redis.RDB.Del(ctx, redisKey).Err(); err != nil {
+		hlog.CtxErrorf(ctx, "删除临时MFA密钥失败: %v", err)
+		return errno.RedisError
+	}
+
+	hlog.CtxInfof(ctx, "绑定MFA成功, 用户ID: %s", userID)
+	return nil
 }

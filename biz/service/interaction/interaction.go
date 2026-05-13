@@ -15,7 +15,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 )
 
-func LikeAction(ctx context.Context, userID, videoID, actionType string) error {
+func LikeAction(ctx context.Context, userID, videoID, commentID, actionType string) error {
 	actionTypeInt := int32(0)
 	if actionType == "1" {
 		actionTypeInt = 1
@@ -26,21 +26,36 @@ func LikeAction(ctx context.Context, userID, videoID, actionType string) error {
 		return errno.ParamError
 	}
 
-	cleanVideoID := strings.Trim(videoID, "\"")
-	hlog.CtxInfof(ctx, "点赞操作: userID=%s, videoID=%s, actionType=%d", userID, cleanVideoID, actionTypeInt)
+	if commentID != "" {
+		// 对评论点赞
+		hlog.CtxInfof(ctx, "评论点赞操作: userID=%s, commentID=%s, actionType=%d", userID, commentID, actionTypeInt)
+		if err := mysql.CommentLikeAction(ctx, userID, commentID, actionTypeInt); err != nil {
+			hlog.CtxErrorf(ctx, "评论点赞操作失败: %v", err)
+			return errno.DBError
+		}
+		hlog.CtxInfof(ctx, "评论点赞操作成功: userID=%s, commentID=%s", userID, commentID)
+	} else if videoID != "" {
+		// 对视频点赞
+		cleanVideoID := strings.Trim(videoID, "\"")
+		hlog.CtxInfof(ctx, "视频点赞操作: userID=%s, videoID=%s, actionType=%d", userID, cleanVideoID, actionTypeInt)
 
-	if err := mysql.LikeAction(ctx, userID, cleanVideoID, actionTypeInt); err != nil {
-		hlog.CtxErrorf(ctx, "点赞操作失败: %v", err)
-		return errno.DBError
-	}
+		if err := mysql.LikeAction(ctx, userID, cleanVideoID, actionTypeInt); err != nil {
+			hlog.CtxErrorf(ctx, "视频点赞操作失败: %v", err)
+			return errno.DBError
+		}
 
-	if _, err := redis.RDB.Del(ctx, "popular:videos").Result(); err != nil {
-		hlog.CtxErrorf(ctx, "删除热门视频缓存失败: %v", err)
+		if _, err := redis.RDB.Del(ctx, "popular:videos").Result(); err != nil {
+			hlog.CtxErrorf(ctx, "删除热门视频缓存失败: %v", err)
+		} else {
+			hlog.CtxInfof(ctx, "热门视频缓存已清除")
+		}
+
+		hlog.CtxInfof(ctx, "视频点赞操作成功: userID=%s, videoID=%s", userID, cleanVideoID)
 	} else {
-		hlog.CtxInfof(ctx, "热门视频缓存已清除")
+		hlog.CtxErrorf(ctx, "必须提供 video_id 或 comment_id")
+		return errno.ParamError
 	}
 
-	hlog.CtxInfof(ctx, "点赞操作成功: userID=%s, videoID=%s", userID, cleanVideoID)
 	return nil
 }
 
@@ -107,22 +122,47 @@ func LikeList(ctx context.Context, userID string, pageNum, pageSize int32) ([]*i
 	return items, nil
 }
 
-func CommentPublish(ctx context.Context, userID, videoID, content string) error {
-	hlog.CtxInfof(ctx, "发表评论: userID=%s, videoID=%s, content=%s", userID, videoID, content)
+func CommentPublish(ctx context.Context, userID, videoID, commentID, content string) error {
+	if commentID != "" {
+		// 对评论的评论（回复评论）
+		hlog.CtxInfof(ctx, "回复评论: userID=%s, commentID=%s, content=%s", userID, commentID, content)
 
-	comment := &entity.Comment{
-		ID:        utils.GenerateID(),
-		UserID:    userID,
-		VideoID:   videoID,
-		Content:   content,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		comment := &entity.Comment{
+			ID:        utils.GenerateID(),
+			UserID:    userID,
+			VideoID:   videoID,
+			CommentID: commentID,
+			Content:   content,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		if err := mysql.CreateCommentReply(ctx, comment); err != nil {
+			hlog.CtxErrorf(ctx, "回复评论失败: %v", err)
+			return errno.DBError
+		}
+		hlog.CtxInfof(ctx, "回复评论成功: commentID=%s", comment.ID)
+	} else if videoID != "" {
+		// 对视频的评论
+		hlog.CtxInfof(ctx, "发表评论: userID=%s, videoID=%s, content=%s", userID, videoID, content)
+
+		comment := &entity.Comment{
+			ID:        utils.GenerateID(),
+			UserID:    userID,
+			VideoID:   videoID,
+			Content:   content,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		if err := mysql.CreateComment(ctx, userID, videoID, comment); err != nil {
+			hlog.CtxErrorf(ctx, "发表评论失败: %v", err)
+			return errno.DBError
+		}
+		hlog.CtxInfof(ctx, "发表评论成功: commentID=%s", comment.ID)
+	} else {
+		hlog.CtxErrorf(ctx, "必须提供 video_id 或 comment_id")
+		return errno.ParamError
 	}
-	if err := mysql.CreateComment(ctx, userID, videoID, comment); err != nil {
-		hlog.CtxErrorf(ctx, "发表评论失败: %v", err)
-		return errno.DBError
-	}
-	hlog.CtxInfof(ctx, "发表评论成功: commentID=%s", comment.ID)
+
 	return nil
 }
 

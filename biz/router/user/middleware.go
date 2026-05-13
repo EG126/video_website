@@ -12,19 +12,39 @@ func rootMw() []app.HandlerFunc {
 	return nil
 }
 
+func _authMw() []app.HandlerFunc {
+	return nil
+}
+
+func _mfaMw() []app.HandlerFunc {
+	return nil
+}
+
+func _bindmfaMw() []app.HandlerFunc {
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
+}
+
+func _getmfaMw() []app.HandlerFunc {
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
+}
+
 func _userMw() []app.HandlerFunc {
 	return nil
+}
+
+func _infoMw() []app.HandlerFunc {
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _loginMw() []app.HandlerFunc {
 	return nil
 }
 
-func _registerMw() []app.HandlerFunc {
+func _refreshMw() []app.HandlerFunc {
 	return nil
 }
 
-func _infoMw() []app.HandlerFunc {
+func _registerMw() []app.HandlerFunc {
 	return nil
 }
 
@@ -34,8 +54,4 @@ func _avatarMw() []app.HandlerFunc {
 
 func _uploadavatarMw() []app.HandlerFunc {
 	return []app.HandlerFunc{jwt.AuthMiddleware()}
-}
-
-func _refreshMw() []app.HandlerFunc {
-	return nil
 }
