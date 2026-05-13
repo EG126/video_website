@@ -65,11 +65,35 @@ struct UserAvatarResp{
     2:list<UserDataResp> Data;
 }
 
+struct UserGetMFAReq{
+    1:string access_token (api.header="Access-Token");
+    2:string refresh_token (api.header="Refresh-Token");
+}
+
+struct UserGetMFAResp{
+    1:base.BaseResp Base;
+    2:string secret;
+    3:string qrcode;
+}
+
+struct UserBindMFAReq{
+    1:string access_token (api.header="Access-Token");
+    2:string refresh_token (api.header="Refresh-Token");
+    3:string code (api.form="code");
+    4:string secret (api.form="secret");
+}
+
+struct UserBindMFAResp{
+    1:base.BaseResp Base;
+}
+
 service UserService{
     UserRegisterResp Register(1:UserRegisterReq req) (api.post="/user/register");
     UserLoginResp Login(1:UserLoginReq req) (api.post="/user/login");
     UserInfoResp Info(1:UserInfoReq req) (api.get="/user/info");
     UserAvatarResp UploadAvatar(1:UserAvatarReq req) (api.put="/user/avatar/upload");
+    UserGetMFAResp GetMFA(1:UserGetMFAReq req) (api.get="/auth/mfa/qrcode");
+    UserBindMFAResp BindMFA(1:UserBindMFAReq req) (api.post="/auth/mfa/bind");
     RefreshResp Refresh(1:RefreshReq req)  (api.post="/user/refresh");
 }
 

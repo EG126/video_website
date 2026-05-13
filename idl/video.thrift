@@ -74,9 +74,19 @@ struct VideoSearchResp{
     3:i32 total;
 }
 
+struct VideoFeedReq{
+    1:string latest_time (api.query="latest_time");
+}
+
+struct VideoFeedResp{
+    1:base.BaseResp Base;
+    2:list<VideoItemsResp> Items;
+}
+
 service VideoService{
-    VideoPublishResp Publish(1:VideoPublishReq req) (api.post="/videos/publish");
-    VideoListResp List(1:VideoListReq req) (api.get="/videos/list");
-    VideoPopularResp Popular(1:VideoPopularReq req) (api.get="/videos/popular");
-    VideoSearchResp Search(1:VideoSearchReq req) (api.post="/videos/search");
+    VideoPublishResp Publish(1:VideoPublishReq req) (api.post="/video/publish");
+    VideoListResp List(1:VideoListReq req) (api.get="/video/list");
+    VideoPopularResp Popular(1:VideoPopularReq req) (api.get="/video/popular");
+    VideoSearchResp Search(1:VideoSearchReq req) (api.post="/video/search");
+    VideoFeedResp Feed(1:VideoFeedReq req) (api.get="/video/feed/");
 }

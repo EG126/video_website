@@ -43,7 +43,7 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	result, err := userService.Login(ctx, req.Username, req.Password)
+	result, err := userService.Login(ctx, req.Username, req.Password, req.Code)
 	if err != nil {
 		response.SendResponse(c, err, nil)
 		return
@@ -124,4 +124,50 @@ func Refresh(ctx context.Context, c *app.RequestContext) {
 		AccessToken:  result.AccessToken,
 		RefreshToken: result.RefreshToken,
 	})
+}
+
+// GetMFA 获取MFA二维码
+// @router /auth/mfa/qrcode [GET]
+func GetMFA(ctx context.Context, c *app.RequestContext) {
+	var req user.UserGetMFAReq
+	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+
+	userID := jwt.GetUserID(ctx, c)
+	result, err := userService.GetMFA(ctx, userID)
+	if err != nil {
+		response.SendResponse(c, err, nil)
+		return
+	}
+
+	type mfaData struct {
+		Secret string `json:"secret"`
+		Qrcode string `json:"qrcode"`
+	}
+	response.SendResponse(c, errno.Success, mfaData{
+		Secret: result.Secret,
+		Qrcode: result.Qrcode,
+	})
+}
+
+// BindMFA 绑定MFA
+// @router /auth/mfa/bind [POST]
+func BindMFA(ctx context.Context, c *app.RequestContext) {
+	var req user.UserBindMFAReq
+	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+
+	userID := jwt.GetUserID(ctx, c)
+	if err := userService.BindMFA(ctx, userID, req.Code, req.Secret); err != nil {
+		response.SendResponse(c, err, nil)
+		return
+	}
+
+	response.SendResponse(c, errno.Success, nil)
 }

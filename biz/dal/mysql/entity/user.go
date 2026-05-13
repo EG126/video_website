@@ -11,6 +11,7 @@ type User struct {
 	Username  string         `gorm:"uniqueIndex;column:username;type:varchar(50)"`
 	Password  string         `gorm:"column:password;type:varchar(100)"`
 	AvatarURL string         `gorm:"column:avatar_url;type:varchar(255)"`
+	MFASecret string         `gorm:"column:mfa_secret;type:varchar(100)"`
 	CreatedAt time.Time      `gorm:"column:created_at;"`
 	UpdatedAt time.Time      `gorm:"column:updated_at;"`
 	DeletedAt gorm.DeletedAt `gorm:"column:deleted_at;"`

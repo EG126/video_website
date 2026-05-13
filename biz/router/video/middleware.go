@@ -9,23 +9,19 @@ import (
 )
 
 func rootMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }
 
-func _videosMw() []app.HandlerFunc {
-	// your code...
+func _videoMw() []app.HandlerFunc {
 	return nil
 }
 
 func _listMw() []app.HandlerFunc {
-	// your code...
 	return nil
 }
 
 func _popularMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _publishMw() []app.HandlerFunc {
@@ -33,6 +29,13 @@ func _publishMw() []app.HandlerFunc {
 }
 
 func _searchMw() []app.HandlerFunc {
-	// your code...
+	return nil
+}
+
+func _feedMw() []app.HandlerFunc {
+	return nil
+}
+
+func _feed0Mw() []app.HandlerFunc {
 	return nil
 }

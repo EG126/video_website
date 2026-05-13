@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"errors"
+	"strconv"
+	"time"
 	"video_website/biz/dal/mysql/entity"
 
 	"gorm.io/gorm"
@@ -53,4 +55,26 @@ func SearchVideos(ctx context.Context, keyword string, pageNum, pageSize int32) 
 	offset := (pageNum - 1) * pageSize
 	err := db.Offset(int(offset)).Limit(int(pageSize)).Find(&videos).Error
 	return videos, total, err
+}
+
+func GetFeedVideos(ctx context.Context, latestTime string) ([]*entity.Video, error) {
+	var videos []*entity.Video
+	query := DB.WithContext(ctx).Model(&entity.Video{}).Order("created_at desc").Limit(30)
+	if latestTime != "" {
+		// 只允许13位时间戳
+		if len(latestTime) != 13 {
+			return nil, errors.New("latest_time must be 13-digit timestamp")
+		}
+		timestamp, err := strconv.ParseInt(latestTime, 10, 64)
+		if err != nil {
+			return nil, errors.New("latest_time must be valid 13-digit timestamp")
+		}
+		parsedTime := time.UnixMilli(timestamp)
+		query = query.Where("created_at > ?", parsedTime)
+	}
+	err := query.Find(&videos).Error
+	if err != nil {
+		return nil, err
+	}
+	return videos, nil
 }

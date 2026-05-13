@@ -104,3 +104,27 @@ func Search(ctx context.Context, c *app.RequestContext) {
 		Total: total,
 	})
 }
+
+// Feed 视频流
+// @router /videos/feed [GET]
+func Feed(ctx context.Context, c *app.RequestContext) {
+	var req video.VideoFeedReq
+	if err := c.BindAndValidate(&req); err != nil {
+		hlog.CtxErrorf(ctx, "绑定并验证失败: %v", err)
+		response.SendResponse(c, errno.ParamError, nil)
+		return
+	}
+
+	items, err := videoService.Feed(ctx, req.LatestTime, "")
+	if err != nil {
+		response.SendResponse(c, err, nil)
+		return
+	}
+
+	type videoFeedData struct {
+		Items []*video.VideoItemsResp `json:"items"`
+	}
+	response.SendResponse(c, errno.Success, videoFeedData{
+		Items: items,
+	})
+}

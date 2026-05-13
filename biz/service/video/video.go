@@ -207,3 +207,38 @@ func Search(ctx context.Context, keywords string, pageNum, pageSize int32) ([]*v
 	hlog.CtxInfof(ctx, "搜索视频返回成功, 关键词: %s", keywords)
 	return items, int32(total), nil
 }
+
+func Feed(ctx context.Context, latestTime string, userID string) ([]*video.VideoItemsResp, error) {
+	hlog.CtxInfof(ctx, "开始获取视频流, latestTime=%s, userID=%s", latestTime, userID)
+
+	videos, err := mysql.GetFeedVideos(ctx, latestTime)
+	if err != nil {
+		hlog.CtxErrorf(ctx, "获取视频流失败: %v", err)
+		// 判断是否是参数错误（13位时间戳格式错误）
+		if err.Error() == "latest_time must be 13-digit timestamp" || err.Error() == "latest_time must be valid 13-digit timestamp" {
+			return nil, errno.ParamError
+		}
+		return nil, errno.DBError
+	}
+
+	items := make([]*video.VideoItemsResp, 0, len(videos))
+	for _, v := range videos {
+		items = append(items, &video.VideoItemsResp{
+			ID:           v.ID,
+			UserID:       v.UserID,
+			VideoURL:     v.VideoURL,
+			CoverURL:     v.CoverURL,
+			Title:        v.Title,
+			Description:  v.Description,
+			VisitCount:   int32(v.VisitCount),
+			LikeCount:    int32(v.LikeCount),
+			CommentCount: int32(v.CommentCount),
+			CreatedAt:    v.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:    v.UpdatedAt.Format("2006-01-02 15:04:05"),
+			DeletedAt:    "",
+		})
+	}
+
+	hlog.CtxInfof(ctx, "视频流返回成功, 数量: %d", len(items))
+	return items, nil
+}

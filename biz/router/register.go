@@ -20,5 +20,4 @@ func GeneratedRegister(r *server.Hertz) {
 	social.Register(r)
 
 	interaction.Register(r)
-
 }

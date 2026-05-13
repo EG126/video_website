@@ -23,6 +23,9 @@ func GetUserByUsername(ctx context.Context, username string) (*entity.User, erro
 func GetUserByID(ctx context.Context, id string) (*entity.User, error) {
 	var user entity.User
 	err := DB.WithContext(ctx).Where("id = ?", id).First(&user).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
 	return &user, err
 }
 
@@ -34,4 +37,20 @@ func IsUserExist(ctx context.Context, username string) (bool, error) {
 	var count int64
 	err := DB.WithContext(ctx).Model(&entity.User{}).Where("username = ?", username).Count(&count).Error
 	return count > 0, err
+}
+
+func UpdateUserMFA(ctx context.Context, userID, mfaSecret string) error {
+	return DB.WithContext(ctx).Model(&entity.User{}).Where("id = ?", userID).Update("mfa_secret", mfaSecret).Error
+}
+
+func GetUserMFASecret(ctx context.Context, userID string) (string, error) {
+	var user entity.User
+	err := DB.WithContext(ctx).Select("mfa_secret").Where("id = ?", userID).First(&user).Error
+	if err == gorm.ErrRecordNotFound {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return user.MFASecret, nil
 }

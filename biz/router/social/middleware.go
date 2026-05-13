@@ -17,7 +17,7 @@ func _followerMw() []app.HandlerFunc {
 }
 
 func _followerlistMw() []app.HandlerFunc {
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _followingMw() []app.HandlerFunc {
@@ -25,7 +25,7 @@ func _followingMw() []app.HandlerFunc {
 }
 
 func _followinglistMw() []app.HandlerFunc {
-	return nil
+	return []app.HandlerFunc{jwt.AuthMiddleware()}
 }
 
 func _friendsMw() []app.HandlerFunc {
