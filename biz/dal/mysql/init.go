@@ -15,5 +15,5 @@ func Init(dsn string) error {
 		return err
 	}
 	DB = db
-	return DB.AutoMigrate(&entity.User{}, &entity.Video{}, &entity.Like{}, &entity.Comment{}, &entity.Follow{})
+	return DB.AutoMigrate(&entity.User{}, &entity.Video{}, &entity.Like{}, &entity.Comment{}, &entity.Follow{}, &entity.CommentLike{}, &entity.ChatMessage{}, &entity.ChatRoom{}, &entity.RoomMember{})
 }

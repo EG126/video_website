@@ -3,9 +3,12 @@
 package main
 
 import (
+	"net/http"
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/redis"
+	chatHandler "video_website/biz/handler/chat"
 	"video_website/biz/router"
+	chatService "video_website/biz/service/chat"
 	"video_website/config"
 	"video_website/pkg/jwt"
 	"video_website/pkg/utils"
@@ -31,11 +34,21 @@ func main() {
 		hlog.Fatal("Redis初始化失败:", err)
 	}
 
+	chatService.InitHub()
+
 	h := server.Default(server.WithHostPorts(config.Conf.Server.Address))
 
 	h.Static("/static", "./")
 
 	router.GeneratedRegister(h)
+
+	go func() {
+		http.HandleFunc("/ws", chatHandler.HTTPWebSocketHandler)
+		hlog.Infof("WebSocket 服务已启动: ws://localhost:6666/ws")
+		if err := http.ListenAndServe(":6666", nil); err != nil {
+			hlog.Fatalf("WebSocket服务启动失败: %v", err)
+		}
+	}()
 
 	h.Spin()
 }
