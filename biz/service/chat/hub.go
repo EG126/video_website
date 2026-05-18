@@ -538,17 +538,22 @@ func (c *Client) publishPrivateMessageToUser(toUserID string, msg *entity.ChatMe
 		"created_at":   msg.CreatedAt.Unix(),
 	}
 
-	pm := PrivateMsg{
-		Type:    "type1_push",
-		From:    c.UserID,
-		To:      toUserID,
-		Payload: payload,
+	c.Hub.mu.RLock()
+	_, exists := c.Hub.Clients[toUserID]
+	c.Hub.mu.RUnlock()
+
+	if exists {
+		c.Hub.deliverPrivateMessage(toUserID, payload)
+	} else {
+		pm := PrivateMsg{
+			Type:    "type1_push",
+			From:    c.UserID,
+			To:      toUserID,
+			Payload: payload,
+		}
+		pmData, _ := json.Marshal(pm)
+		go redis.PublishPrivateMessage(toUserID, pmData)
 	}
-
-	c.Hub.deliverPrivateMessage(toUserID, payload)
-
-	pmData, _ := json.Marshal(pm)
-	go redis.PublishPrivateMessage(toUserID, pmData)
 }
 
 func (c *Client) publishGroupMessage(roomID string, msg *entity.ChatMessage) {
@@ -560,17 +565,31 @@ func (c *Client) publishGroupMessage(roomID string, msg *entity.ChatMessage) {
 		"created_at":   msg.CreatedAt.Unix(),
 	}
 
-	roomPayload := map[string]interface{}{
-		"room_id": roomID,
-		"payload": payload,
+	c.Hub.mu.RLock()
+	hasLocalMembers := false
+	for _, client := range c.Hub.Clients {
+		client.mu.RLock()
+		if client.Rooms[roomID] {
+			hasLocalMembers = true
+			client.mu.RUnlock()
+			break
+		}
+		client.mu.RUnlock()
 	}
+	c.Hub.mu.RUnlock()
 
-	c.Hub.Broadcast <- &BroadcastMsg{
-		RoomID:  roomID,
-		Message: mustMarshal(payload),
+	if hasLocalMembers {
+		c.Hub.Broadcast <- &BroadcastMsg{
+			RoomID:  roomID,
+			Message: mustMarshal(payload),
+		}
 	}
 
 	go func() {
+		roomPayload := map[string]interface{}{
+			"room_id": roomID,
+			"payload": payload,
+		}
 		roomData, _ := json.Marshal(roomPayload)
 		redis.PublishRoomMessage(roomID, roomData)
 	}()

@@ -29,9 +29,13 @@ _testmain.go
 *.sublime-workspace
 !.gitkeep
 .DS_Store
-/.idea
-/.vscode
-/output
+.idea
+.vscode
+output
 *.local.yml
 dumped_hertz_remote_config.json
-		  
+app.exe
+debug.log
+vendor
+.bin
+node_modules
