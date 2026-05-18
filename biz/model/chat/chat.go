@@ -1,4 +1,3 @@
-
 package chat
 
 type PrivateMessageReq struct {
@@ -18,8 +17,8 @@ type UnreadReq struct {
 }
 
 type GroupMessageReq struct {
-	RoomID   string `json:"room_id"`
-	Content  string `json:"content"`
+	RoomID  string `json:"room_id"`
+	Content string `json:"content"`
 }
 
 type GroupHistoryReq struct {
@@ -48,9 +47,9 @@ type MessageInfo struct {
 
 type PrivateHistoryResp struct {
 	Messages []MessageInfo `json:"messages"`
-	Total    int64        `json:"total"`
-	Page     int64        `json:"page"`
-	Size     int64        `json:"size"`
+	Total    int64         `json:"total"`
+	Page     int64         `json:"page"`
+	Size     int64         `json:"size"`
 }
 
 type UnreadResp struct {
@@ -60,9 +59,9 @@ type UnreadResp struct {
 
 type GroupHistoryResp struct {
 	Messages []MessageInfo `json:"messages"`
-	Total    int64        `json:"total"`
-	Page     int64        `json:"page"`
-	Size     int64        `json:"size"`
+	Total    int64         `json:"total"`
+	Page     int64         `json:"page"`
+	Size     int64         `json:"size"`
 }
 
 type CheckOnlineResp struct {

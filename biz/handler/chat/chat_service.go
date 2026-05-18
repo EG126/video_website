@@ -1,17 +1,15 @@
-
 package chat
 
 import (
+	"context"
 	"net/http"
 
-	"video_website/biz/dal/mysql"
-	"video_website/biz/dal/mysql/entity"
 	"video_website/biz/service/chat"
+	userService "video_website/biz/service/user"
 	"video_website/pkg/jwt"
 
 	"github.com/cloudwego/hertz/pkg/common/hlog"
 	"github.com/gorilla/websocket"
-	"gorm.io/gorm"
 )
 
 var upgrader = websocket.Upgrader{
@@ -34,19 +32,19 @@ func HTTPWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userID = claims.UserID
-		
-		var user entity.User
-		if err := mysql.DB.Where("id = ?", userID).First(&user).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				hlog.Errorf("用户不存在: %v", err)
-				http.Error(w, "User not found", http.StatusUnauthorized)
-				return
-			}
+
+		users, err := userService.Info(context.Background(), userID)
+		if err != nil {
 			hlog.Errorf("查询用户失败: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			http.Error(w, "User not found", http.StatusUnauthorized)
 			return
 		}
-		username = user.Username
+		if len(users) == 0 {
+			hlog.Errorf("用户不存在: %s", userID)
+			http.Error(w, "User not found", http.StatusUnauthorized)
+			return
+		}
+		username = users[0].Username
 	} else {
 		userID = r.URL.Query().Get("user_id")
 		username = r.URL.Query().Get("username")
@@ -76,4 +74,3 @@ func HTTPWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	go client.WritePump()
 	go client.ReadPump()
 }
-
