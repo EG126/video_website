@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 version: "2"
 
+=======
+>>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
 run:
   timeout: 5m
 
@@ -7,12 +10,21 @@ linters:
   enable:
     - errcheck
     - gocritic
+<<<<<<< HEAD
     - govet
     - gosec
+=======
+    - gofmt
+    - govet
+>>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
     - ineffassign
     - misspell
     - revive
     - staticcheck
+<<<<<<< HEAD
+=======
+    - typecheck
+>>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
     - unused
 
   disable:
