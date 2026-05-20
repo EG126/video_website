@@ -4,6 +4,7 @@ run:
   timeout: 5m
 
 linters:
+  default: none
   enable:
     - errcheck
     - gocritic
@@ -14,7 +15,9 @@ linters:
     - revive
     - staticcheck
     - unused
-
+  settings:
+    gofmt:
+      simplify: true
   disable:
     - gochecknoglobals
     - gochecknoinits
@@ -23,10 +26,6 @@ linters:
     - funlen
     - lll
     - prealloc
-
-linters-settings:
-  gofmt:
-    simplify: true
 
 issues:
   exclude-rules:
