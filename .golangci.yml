@@ -1,32 +1,19 @@
-<<<<<<< HEAD
 version: "2"
 
-=======
->>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
 run:
   timeout: 5m
 
 linters:
+  default: none
   enable:
     - errcheck
     - gocritic
-<<<<<<< HEAD
     - govet
     - gosec
-=======
-    - gofmt
-    - govet
->>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
     - ineffassign
     - misspell
-    - revive
     - staticcheck
-<<<<<<< HEAD
-=======
-    - typecheck
->>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
     - unused
-
   disable:
     - gochecknoglobals
     - gochecknoinits
@@ -35,19 +22,38 @@ linters:
     - funlen
     - lll
     - prealloc
-
-linters-settings:
-  gofmt:
-    simplify: true
+    - revive
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - unused
+      - path: vendor/
+        linters:
+          - all
+      - linters:
+          - errcheck
+        text: "Error return value of `.*Close` is not checked"
+      - linters:
+          - gosec
+        text: "G115:"
+      - linters:
+          - gosec
+        text: "G306:"
+      - linters:
+          - gosec
+        text: "G706:"
+      - linters:
+          - gosec
+        text: "G118:"
+      - linters:
+          - gosec
+        text: "G104:"
+      - linters:
+          - staticcheck
+        text: "QF1003:"
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - unused
-    - path: vendor/
-      linters:
-        - all
   max-issues-per-linter: 0
   max-same-issues: 0

@@ -21,13 +21,9 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-<<<<<<< HEAD
           version: v2.12.2
-=======
-          version: v1.64.8
->>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8
           args: --config=.golangci.yml ./...
 
   codeql:
@@ -80,8 +76,4 @@ jobs:
           cache: true
 
       - name: Run tests
-<<<<<<< HEAD
         run: go test ./... -v
-=======
-        run: go test ./... -v
->>>>>>> 1421650b0f82d27ac98fd72b4910405d367568b8

@@ -15,7 +15,7 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
+	CheckOrigin: func(_ *http.Request) bool {
 		return true
 	},
 }
@@ -61,7 +61,7 @@ func HTTPWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &chat.Client{
-		Hub:      chat.Hub,
+		Hub:      chat.DefaultHub,
 		Conn:     conn,
 		Send:     make(chan []byte, 256),
 		UserID:   userID,
@@ -69,7 +69,7 @@ func HTTPWebSocketHandler(w http.ResponseWriter, r *http.Request) {
 		Rooms:    make(map[string]bool),
 	}
 
-	chat.Hub.Register <- client
+	chat.DefaultHub.Register <- client
 
 	go client.WritePump()
 	go client.ReadPump()

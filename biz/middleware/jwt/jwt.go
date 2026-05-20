@@ -40,7 +40,7 @@ func AuthMiddleware() app.HandlerFunc {
 	}
 }
 
-func GetUserID(ctx context.Context, c *app.RequestContext) string {
+func GetUserID(_ context.Context, c *app.RequestContext) string {
 	value, exists := c.Get(UserInfoKey)
 	if !exists {
 		return ""

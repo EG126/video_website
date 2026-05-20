@@ -3,8 +3,9 @@
 package interaction
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
 	interaction "video_website/biz/handler/interaction"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
 /*

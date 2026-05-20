@@ -19,7 +19,7 @@ func SendResponse(c *app.RequestContext, err error, data interface{}) {
 			})
 			return
 		}
-		//未知错误
+		// 未知错误
 		c.JSON(200, map[string]interface{}{
 			"base": &base.BaseResp{
 				Code: errno.InternalServerError.Code,
@@ -36,5 +36,4 @@ func SendResponse(c *app.RequestContext, err error, data interface{}) {
 		},
 		"data": data,
 	})
-	return
 }

@@ -5,8 +5,9 @@ package user
 import (
 	"context"
 	"fmt"
-	"github.com/apache/thrift/lib/go/thrift"
 	"video_website/biz/model/base"
+
+	"github.com/apache/thrift/lib/go/thrift"
 )
 
 type UserDataResp struct {
