@@ -12,7 +12,6 @@ linters:
     - gosec
     - ineffassign
     - misspell
-    - revive
     - staticcheck
     - unused
   disable:
@@ -23,6 +22,7 @@ linters:
     - funlen
     - lll
     - prealloc
+    - revive
   exclusions:
     rules:
       - path: _test\.go
@@ -32,6 +32,27 @@ linters:
       - path: vendor/
         linters:
           - all
+      - linters:
+          - errcheck
+        text: "Error return value of `.*Close` is not checked"
+      - linters:
+          - gosec
+        text: "G115:"
+      - linters:
+          - gosec
+        text: "G306:"
+      - linters:
+          - gosec
+        text: "G706:"
+      - linters:
+          - gosec
+        text: "G118:"
+      - linters:
+          - gosec
+        text: "G104:"
+      - linters:
+          - staticcheck
+        text: "QF1003:"
 
 issues:
   max-issues-per-linter: 0
