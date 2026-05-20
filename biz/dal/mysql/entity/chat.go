@@ -1,4 +1,3 @@
-
 package entity
 
 import (
@@ -46,4 +45,3 @@ type RoomMember struct {
 func (RoomMember) TableName() string {
 	return "room_members"
 }
-

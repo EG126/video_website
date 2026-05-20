@@ -3,8 +3,9 @@
 package social
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
 	social "video_website/biz/handler/social"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
 /*

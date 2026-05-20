@@ -65,7 +65,7 @@ func GetVideosByIDs(ctx context.Context, videoIDs []string) ([]*entity.Video, er
 	return videos, err
 }
 
-func CreateComment(ctx context.Context, userID, videoID string, comment *entity.Comment) error {
+func CreateComment(ctx context.Context, _, _ string, comment *entity.Comment) error {
 	return DB.WithContext(ctx).Create(comment).Error
 }
 

@@ -17,16 +17,18 @@ import (
 
 func LikeAction(ctx context.Context, userID, videoID, commentID, actionType string) error {
 	actionTypeInt := int32(0)
-	if actionType == "1" {
+	switch actionType {
+	case "1":
 		actionTypeInt = 1
-	} else if actionType == "2" {
+	case "2":
 		actionTypeInt = 2
-	} else {
+	default:
 		hlog.CtxErrorf(ctx, "无效的action_type: %s", actionType)
 		return errno.ParamError
 	}
 
-	if commentID != "" {
+	switch {
+	case commentID != "":
 		// 对评论点赞
 		hlog.CtxInfof(ctx, "评论点赞操作: userID=%s, commentID=%s, actionType=%d", userID, commentID, actionTypeInt)
 		if err := mysql.CommentLikeAction(ctx, userID, commentID, actionTypeInt); err != nil {
@@ -34,7 +36,7 @@ func LikeAction(ctx context.Context, userID, videoID, commentID, actionType stri
 			return errno.DBError
 		}
 		hlog.CtxInfof(ctx, "评论点赞操作成功: userID=%s, commentID=%s", userID, commentID)
-	} else if videoID != "" {
+	case videoID != "":
 		// 对视频点赞
 		cleanVideoID := strings.Trim(videoID, "\"")
 		hlog.CtxInfof(ctx, "视频点赞操作: userID=%s, videoID=%s, actionType=%d", userID, cleanVideoID, actionTypeInt)
@@ -51,7 +53,7 @@ func LikeAction(ctx context.Context, userID, videoID, commentID, actionType stri
 		}
 
 		hlog.CtxInfof(ctx, "视频点赞操作成功: userID=%s, videoID=%s", userID, cleanVideoID)
-	} else {
+	default:
 		hlog.CtxErrorf(ctx, "必须提供 video_id 或 comment_id")
 		return errno.ParamError
 	}
@@ -123,7 +125,8 @@ func LikeList(ctx context.Context, userID string, pageNum, pageSize int32) ([]*i
 }
 
 func CommentPublish(ctx context.Context, userID, videoID, commentID, content string) error {
-	if commentID != "" {
+	switch {
+	case commentID != "":
 		// 对评论的评论（回复评论）
 		hlog.CtxInfof(ctx, "回复评论: userID=%s, commentID=%s, content=%s", userID, commentID, content)
 
@@ -141,7 +144,7 @@ func CommentPublish(ctx context.Context, userID, videoID, commentID, content str
 			return errno.DBError
 		}
 		hlog.CtxInfof(ctx, "回复评论成功: commentID=%s", comment.ID)
-	} else if videoID != "" {
+	case videoID != "":
 		// 对视频的评论
 		hlog.CtxInfof(ctx, "发表评论: userID=%s, videoID=%s, content=%s", userID, videoID, content)
 
@@ -158,7 +161,7 @@ func CommentPublish(ctx context.Context, userID, videoID, commentID, content str
 			return errno.DBError
 		}
 		hlog.CtxInfof(ctx, "发表评论成功: commentID=%s", comment.ID)
-	} else {
+	default:
 		hlog.CtxErrorf(ctx, "必须提供 video_id 或 comment_id")
 		return errno.ParamError
 	}

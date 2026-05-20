@@ -17,7 +17,7 @@ import (
 )
 
 type Client struct {
-	Hub      *ChatHub
+	Hub      *Hub
 	Conn     *websocket.Conn
 	Send     chan []byte
 	UserID   string
@@ -44,7 +44,7 @@ type WSResponse struct {
 	Payload interface{} `json:"payload"`
 }
 
-type ChatHub struct {
+type Hub struct {
 	Clients    map[string]*Client
 	Register   chan *Client
 	Unregister chan *Client
@@ -54,11 +54,11 @@ type ChatHub struct {
 	cancel     context.CancelFunc
 }
 
-var Hub *ChatHub
+var DefaultHub *Hub
 
 func InitHub() {
 	ctx, cancel := context.WithCancel(context.Background())
-	Hub = &ChatHub{
+	DefaultHub = &Hub{
 		Clients:    make(map[string]*Client),
 		Register:   make(chan *Client, 256),
 		Unregister: make(chan *Client, 256),
@@ -66,12 +66,12 @@ func InitHub() {
 		ctx:        ctx,
 		cancel:     cancel,
 	}
-	go Hub.Run()
-	go Hub.SubscribePrivateMessages()
-	go Hub.SubscribeRoomMessages()
+	go DefaultHub.Run()
+	go DefaultHub.SubscribePrivateMessages()
+	go DefaultHub.SubscribeRoomMessages()
 }
 
-func (h *ChatHub) Run() {
+func (h *Hub) Run() {
 	for {
 		select {
 		case <-h.ctx.Done():
@@ -80,7 +80,9 @@ func (h *ChatHub) Run() {
 			h.mu.Lock()
 			h.Clients[client.UserID] = client
 			h.mu.Unlock()
-			redis.SetUserOnline(client.UserID)
+			if err := redis.SetUserOnline(client.UserID); err != nil {
+				hlog.Errorf("设置用户 %s 上线状态失败: %v", client.UserID, err)
+			}
 			hlog.Infof("用户 %s 上线", client.UserID)
 
 		case client := <-h.Unregister:
@@ -90,7 +92,9 @@ func (h *ChatHub) Run() {
 				close(client.Send)
 			}
 			h.mu.Unlock()
-			redis.SetUserOffline(client.UserID)
+			if err := redis.SetUserOffline(client.UserID); err != nil {
+				hlog.Errorf("设置用户 %s 离线状态失败: %v", client.UserID, err)
+			}
 			hlog.Infof("用户 %s 离线", client.UserID)
 
 		case msg := <-h.Broadcast:
@@ -114,7 +118,7 @@ func (h *ChatHub) Run() {
 	}
 }
 
-func (h *ChatHub) SubscribePrivateMessages() {
+func (h *Hub) SubscribePrivateMessages() {
 	pubsub := redis.SubscribePrivateMessages(h.ctx)
 	defer pubsub.Close()
 
@@ -137,7 +141,7 @@ func (h *ChatHub) SubscribePrivateMessages() {
 	}
 }
 
-func (h *ChatHub) SubscribeRoomMessages() {
+func (h *Hub) SubscribeRoomMessages() {
 	pubsub := redis.SubscribeRoomMessages(h.ctx)
 	defer pubsub.Close()
 
@@ -166,7 +170,7 @@ func (h *ChatHub) SubscribeRoomMessages() {
 	}
 }
 
-func (h *ChatHub) deliverPrivateMessage(toUserID string, payload map[string]interface{}) {
+func (h *Hub) deliverPrivateMessage(toUserID string, payload map[string]interface{}) {
 	h.mu.RLock()
 	client, exists := h.Clients[toUserID]
 	h.mu.RUnlock()
@@ -194,7 +198,7 @@ func (h *ChatHub) deliverPrivateMessage(toUserID string, payload map[string]inte
 	}
 }
 
-func (h *ChatHub) IsUserOnline(userID string) bool {
+func (h *Hub) IsUserOnline(userID string) bool {
 	return redis.IsUserOnline(userID)
 }
 
@@ -251,17 +255,13 @@ func (c *Client) WritePump() {
 		c.Conn.Close()
 	}()
 
-	for {
-		select {
-		case message, ok := <-c.Send:
-			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				return
-			}
+	for message := range c.Send {
+		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			return
 		}
+	}
+	if err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+		hlog.Errorf("发送关闭消息失败: %v", err)
 	}
 }
 
@@ -309,8 +309,16 @@ func (c *Client) handleType1(msgData map[string]interface{}) {
 		CreatedAt:  time.Now(),
 	}
 
-	go mysql.SavePrivateMessage(chatMsg)
-	go redis.IncrementUnreadCount(toUserID, c.UserID)
+	go func() {
+		if err := mysql.SavePrivateMessage(chatMsg); err != nil {
+			hlog.Errorf("保存私聊消息失败: %v", err)
+		}
+	}()
+	go func() {
+		if err := redis.IncrementUnreadCount(toUserID, c.UserID); err != nil {
+			hlog.Errorf("增加未读计数失败: %v", err)
+		}
+	}()
 	go c.publishPrivateMessageToUser(toUserID, chatMsg)
 
 	c.SendResponse("type1_ack", chat.AckResp{
@@ -339,8 +347,16 @@ func (c *Client) handleType2(msgData map[string]interface{}) {
 	messages, total := c.getPrivateHistory(c.UserID, toUserID, page, size)
 
 	if markAsRead {
-		go mysql.MarkMessagesAsRead(c.UserID, toUserID)
-		go redis.ClearUnreadCount(c.UserID, toUserID)
+		go func() {
+			if err := mysql.MarkMessagesAsRead(c.UserID, toUserID); err != nil {
+				hlog.Errorf("标记消息已读失败: %v", err)
+			}
+		}()
+		go func() {
+			if err := redis.ClearUnreadCount(c.UserID, toUserID); err != nil {
+				hlog.Errorf("清除未读计数失败: %v", err)
+			}
+		}()
 	}
 
 	c.SendResponse("type2_resp", chat.PrivateHistoryResp{
@@ -366,8 +382,16 @@ func (c *Client) handleType3(msgData map[string]interface{}) {
 
 	messages := c.getUnreadMessages(c.UserID, fromUserID)
 
-	go mysql.MarkMessagesAsRead(c.UserID, fromUserID)
-	go redis.ClearUnreadCount(c.UserID, fromUserID)
+	go func() {
+		if err := mysql.MarkMessagesAsRead(c.UserID, fromUserID); err != nil {
+			hlog.Errorf("标记消息已读失败: %v", err)
+		}
+	}()
+	go func() {
+		if err := redis.ClearUnreadCount(c.UserID, fromUserID); err != nil {
+			hlog.Errorf("清除未读计数失败: %v", err)
+		}
+	}()
 
 	c.SendResponse("type3_resp", chat.UnreadResp{
 		Messages: messages,
@@ -402,7 +426,11 @@ func (c *Client) handleType4(msgData map[string]interface{}) {
 		CreatedAt:  time.Now(),
 	}
 
-	go mysql.SaveGroupMessage(chatMsg)
+	go func() {
+		if err := mysql.SaveGroupMessage(chatMsg); err != nil {
+			hlog.Errorf("保存群聊消息失败: %v", err)
+		}
+	}()
 	go c.publishGroupMessage(roomID, chatMsg)
 
 	c.SendResponse("type4_ack", chat.AckResp{
@@ -552,7 +580,11 @@ func (c *Client) publishPrivateMessageToUser(toUserID string, msg *entity.ChatMe
 			Payload: payload,
 		}
 		pmData, _ := json.Marshal(pm)
-		go redis.PublishPrivateMessage(toUserID, pmData)
+		go func() {
+			if err := redis.PublishPrivateMessage(toUserID, pmData); err != nil {
+				hlog.Errorf("发布私聊消息失败: %v", err)
+			}
+		}()
 	}
 }
 
@@ -591,7 +623,9 @@ func (c *Client) publishGroupMessage(roomID string, msg *entity.ChatMessage) {
 			"payload": payload,
 		}
 		roomData, _ := json.Marshal(roomPayload)
-		redis.PublishRoomMessage(roomID, roomData)
+		if err := redis.PublishRoomMessage(roomID, roomData); err != nil {
+			hlog.Errorf("发布房间消息失败: %v", err)
+		}
 	}()
 }
 

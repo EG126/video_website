@@ -3,8 +3,9 @@
 package video
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
 	video "video_website/biz/handler/video"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
 /*

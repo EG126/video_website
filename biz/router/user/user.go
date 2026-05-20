@@ -3,8 +3,9 @@
 package user
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
 	user "video_website/biz/handler/user"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
 /*

@@ -3,8 +3,9 @@
 package main
 
 import (
-	"github.com/cloudwego/hertz/pkg/app/server"
 	handler "video_website/biz/handler"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
 // customizeRegister registers customize routers.
