@@ -1,8 +1,8 @@
 server:
-  address: "127.0.0.1:8888"
+  address: "0.0.0.0:8888"
 
 mysql:
-  dsn: "root:forEG0630@tcp(127.0.0.1:3306)/video_website?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:forEG0630@tcp(127.0.0.1:3306)/video_website?charset=utf8mb4&parseTime=True&loc=Asia%2FShanghai"
 
 jwt:
   secret: "secret"
