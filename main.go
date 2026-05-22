@@ -7,8 +7,9 @@ import (
 	"time"
 	"video_website/biz/dal/mysql"
 	"video_website/biz/dal/redis"
+	handler "video_website/biz/handler"
 	chatHandler "video_website/biz/handler/chat"
-	"video_website/biz/router"
+	router "video_website/biz/router"
 	chatService "video_website/biz/service/chat"
 	"video_website/config"
 	"video_website/pkg/jwt"
@@ -42,6 +43,8 @@ func main() {
 	h.Static("/static", "./")
 
 	router.GeneratedRegister(h)
+
+	h.GET("/ping", handler.Ping)
 
 	go func() {
 		http.HandleFunc("/ws", chatHandler.HTTPWebSocketHandler)
