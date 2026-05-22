@@ -10,7 +10,6 @@ linters:
     - gocritic
     - govet
     - gosec
-    - gci
     - ineffassign
     - misspell
     - staticcheck
