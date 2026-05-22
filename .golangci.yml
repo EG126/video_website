@@ -10,10 +10,11 @@ linters:
     - gocritic
     - govet
     - gosec
+    - gci
     - ineffassign
     - misspell
     - staticcheck
-    - unused
+    - bodyclose
   disable:
     - gochecknoglobals
     - gochecknoinits
@@ -29,27 +30,7 @@ linters:
         linters:
           - errcheck
           - unused
-      - path: vendor/
-        linters:
-          - all
-      - linters:
-          - errcheck
-        text: "Error return value of `.*Close` is not checked"
-      - linters:
-          - gosec
-        text: "G115:"
-      - linters:
-          - gosec
-        text: "G306:"
-      - linters:
-          - gosec
-        text: "G706:"
-      - linters:
-          - gosec
-        text: "G118:"
-      - linters:
-          - gosec
-        text: "G104:"
+
 
 issues:
   max-issues-per-linter: 0
