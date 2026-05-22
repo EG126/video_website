@@ -7,14 +7,15 @@ import (
 )
 
 func FollowAction(ctx context.Context, followerID, followingID string, actionType int32) error {
-	if actionType == 1 { // 关注
+	switch actionType {
+	case 1:
 		follow := &entity.Follow{
 			ID:          utils.GenerateID(),
 			FollowerID:  followerID,
 			FollowingID: followingID,
 		}
 		return DB.WithContext(ctx).FirstOrCreate(follow, "follower_id = ? AND following_id = ?", followerID, followingID).Error
-	} else if actionType == 2 { // 取消关注
+	case 2:
 		return DB.WithContext(ctx).Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&entity.Follow{}).Error
 	}
 	return nil
