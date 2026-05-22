@@ -8,7 +8,8 @@ import (
 )
 
 func LikeAction(ctx context.Context, userID, videoID string, actionType int32) error {
-	if actionType == 1 {
+	switch actionType {
+	case 1:
 		like := &entity.Like{
 			ID:        utils.GenerateID(),
 			UserID:    userID,
@@ -16,14 +17,15 @@ func LikeAction(ctx context.Context, userID, videoID string, actionType int32) e
 			CreatedAt: time.Now(),
 		}
 		return DB.WithContext(ctx).FirstOrCreate(like, "user_id = ? AND video_id = ?", userID, videoID).Error
-	} else if actionType == 2 {
+	case 2:
 		return DB.WithContext(ctx).Where("user_id = ? AND video_id = ?", userID, videoID).Delete(&entity.Like{}).Error
 	}
 	return nil
 }
 
 func CommentLikeAction(ctx context.Context, userID, commentID string, actionType int32) error {
-	if actionType == 1 {
+	switch actionType {
+	case 1:
 		like := &entity.CommentLike{
 			ID:        utils.GenerateID(),
 			UserID:    userID,
@@ -31,7 +33,7 @@ func CommentLikeAction(ctx context.Context, userID, commentID string, actionType
 			CreatedAt: time.Now(),
 		}
 		return DB.WithContext(ctx).FirstOrCreate(like, "user_id = ? AND comment_id = ?", userID, commentID).Error
-	} else if actionType == 2 {
+	case 2:
 		return DB.WithContext(ctx).Where("user_id = ? AND comment_id = ?", userID, commentID).Delete(&entity.CommentLike{}).Error
 	}
 	return nil

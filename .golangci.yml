@@ -50,9 +50,6 @@ linters:
       - linters:
           - gosec
         text: "G104:"
-      - linters:
-          - staticcheck
-        text: "QF1003:"
 
 issues:
   max-issues-per-linter: 0
