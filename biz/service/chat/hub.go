@@ -257,7 +257,9 @@ func (c *Client) WritePump() {
 			return
 		}
 	}
-	c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+	if err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+		hlog.Errorf("发送关闭消息失败: %v", err)
+	}
 }
 
 func (c *Client) SendError(code, message string) {
@@ -310,7 +312,9 @@ func (c *Client) handleType1(msgData map[string]interface{}) {
 		}
 	}()
 	go func() {
-		redis.IncrementUnreadCount(toUserID, c.UserID)
+		if err := redis.IncrementUnreadCount(toUserID, c.UserID); err != nil {
+			hlog.Errorf("增加未读消息计数失败: %v", err)
+		}
 	}()
 	go c.publishPrivateMessageToUser(toUserID, chatMsg)
 
@@ -341,10 +345,14 @@ func (c *Client) handleType2(msgData map[string]interface{}) {
 
 	if markAsRead {
 		go func() {
-			mysql.MarkMessagesAsRead(c.UserID, toUserID)
+			if err := mysql.MarkMessagesAsRead(c.UserID, toUserID); err != nil {
+				hlog.Errorf("标记消息已读失败: %v", err)
+			}
 		}()
 		go func() {
-			redis.ClearUnreadCount(c.UserID, toUserID)
+			if err := redis.ClearUnreadCount(c.UserID, toUserID); err != nil {
+				hlog.Errorf("清除未读计数失败: %v", err)
+			}
 		}()
 	}
 
@@ -372,10 +380,14 @@ func (c *Client) handleType3(msgData map[string]interface{}) {
 	messages := c.getUnreadMessages(c.UserID, fromUserID)
 
 	go func() {
-		mysql.MarkMessagesAsRead(c.UserID, fromUserID)
+		if err := mysql.MarkMessagesAsRead(c.UserID, fromUserID); err != nil {
+			hlog.Errorf("标记消息已读失败: %v", err)
+		}
 	}()
 	go func() {
-		redis.ClearUnreadCount(c.UserID, fromUserID)
+		if err := redis.ClearUnreadCount(c.UserID, fromUserID); err != nil {
+			hlog.Errorf("清除未读计数失败: %v", err)
+		}
 	}()
 
 	c.SendResponse("type3_resp", chat.UnreadResp{
