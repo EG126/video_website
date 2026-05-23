@@ -28,6 +28,7 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 	userID := jwt.GetUserID(ctx, c)
 
 	if err := interactionService.LikeAction(ctx, userID, req.VideoID, req.CommentID, req.ActionType); err != nil {
+		errno.Log(ctx, "点赞操作失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -47,6 +48,7 @@ func LikeList(ctx context.Context, c *app.RequestContext) {
 
 	items, err := interactionService.LikeList(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取点赞列表失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -66,6 +68,7 @@ func CommentPublish(ctx context.Context, c *app.RequestContext) {
 
 	userID := jwt.GetUserID(ctx, c)
 	if err := interactionService.CommentPublish(ctx, userID, req.VideoID, req.CommentID, req.Content); err != nil {
+		errno.Log(ctx, "发布评论失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -85,6 +88,7 @@ func CommentList(ctx context.Context, c *app.RequestContext) {
 
 	items, err := interactionService.CommentList(ctx, req.VideoID, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取评论列表失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -104,6 +108,7 @@ func CommentDelete(ctx context.Context, c *app.RequestContext) {
 
 	userID := jwt.GetUserID(ctx, c)
 	if err := interactionService.CommentDelete(ctx, req.CommentID, userID); err != nil {
+		errno.Log(ctx, "删除评论失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}

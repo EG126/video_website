@@ -176,7 +176,6 @@ func (h *Hub) deliverPrivateMessage(toUserID string, payload map[string]interfac
 	h.mu.RUnlock()
 
 	if !exists {
-		hlog.Infof("用户 %s 不在线，无法直接推送", toUserID)
 		return
 	}
 
@@ -186,13 +185,11 @@ func (h *Hub) deliverPrivateMessage(toUserID string, payload map[string]interfac
 	}
 	data, err := json.Marshal(resp)
 	if err != nil {
-		hlog.Errorf("序列化消息失败: %v", err)
 		return
 	}
 
 	select {
 	case client.Send <- data:
-		hlog.Infof("成功推送私聊消息给用户 %s", toUserID)
 	default:
 		hlog.Warnf("用户 %s 发送队列已满，消息可能丢失", toUserID)
 	}
@@ -316,7 +313,7 @@ func (c *Client) handleType1(msgData map[string]interface{}) {
 	}()
 	go func() {
 		if err := redis.IncrementUnreadCount(toUserID, c.UserID); err != nil {
-			hlog.Errorf("增加未读计数失败: %v", err)
+			hlog.Errorf("增加未读消息计数失败: %v", err)
 		}
 	}()
 	go c.publishPrivateMessageToUser(toUserID, chatMsg)
@@ -418,6 +415,15 @@ func (c *Client) handleType4(msgData map[string]interface{}) {
 	c.Rooms[roomID] = true
 	c.mu.Unlock()
 
+	go func() {
+		if err := mysql.CreateChatRoomIfNotExists(context.Background(), roomID, "群聊房间"+roomID); err != nil {
+			hlog.Errorf("创建房间失败: %v", err)
+		}
+		if err := mysql.AddRoomMemberIfNotExists(context.Background(), roomID, c.UserID); err != nil {
+			hlog.Errorf("添加房间成员失败: %v", err)
+		}
+	}()
+
 	chatMsg := &entity.ChatMessage{
 		FromUserID: c.UserID,
 		RoomID:     roomID,
@@ -452,6 +458,11 @@ func (c *Client) handleType5(msgData map[string]interface{}) {
 
 	if !ok || roomID == "" {
 		c.SendError("missing_fields", "缺少必要字段")
+		return
+	}
+
+	if !mysql.IsRoomMember(context.Background(), roomID, c.UserID) {
+		c.SendError("not_member", "你不是该群聊的成员")
 		return
 	}
 
@@ -614,6 +625,7 @@ func (c *Client) publishGroupMessage(roomID string, msg *entity.ChatMessage) {
 		c.Hub.Broadcast <- &BroadcastMsg{
 			RoomID:  roomID,
 			Message: mustMarshal(payload),
+			Exclude: c,
 		}
 	}
 

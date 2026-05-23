@@ -9,20 +9,9 @@ import (
 
 func SendResponse(c *app.RequestContext, err error, data interface{}) {
 	if err != nil {
-		if e, ok := err.(errno.ErrNo); ok {
-			c.JSON(200, map[string]interface{}{
-				"base": &base.BaseResp{
-					Code: e.Code,
-					Msg:  e.Msg,
-				},
-				"data": data,
-			})
-			return
-		}
-		// 未知错误
 		c.JSON(200, map[string]interface{}{
 			"base": &base.BaseResp{
-				Code: errno.InternalServerError.Code,
+				Code: errno.GetCode(err),
 				Msg:  err.Error(),
 			},
 			"data": data,
@@ -31,8 +20,8 @@ func SendResponse(c *app.RequestContext, err error, data interface{}) {
 	}
 	c.JSON(200, map[string]interface{}{
 		"base": &base.BaseResp{
-			Code: errno.Success.Code,
-			Msg:  errno.Success.Msg,
+			Code: 0,
+			Msg:  "success",
 		},
 		"data": data,
 	})

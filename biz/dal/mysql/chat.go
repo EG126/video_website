@@ -1,6 +1,9 @@
 package mysql
 
 import (
+	"context"
+	"time"
+
 	"video_website/biz/dal/mysql/entity"
 )
 
@@ -60,4 +63,37 @@ func GetGroupHistory(roomID string, page, size int64) ([]entity.ChatMessage, int
 	DB.Where("room_id = ?", roomID).Order("created_at DESC").Limit(int(size)).Offset(int(offset)).Find(&messages)
 
 	return messages, total
+}
+
+func CreateChatRoomIfNotExists(ctx context.Context, roomID, roomName string) error {
+	var count int64
+	DB.WithContext(ctx).Model(&entity.ChatRoom{}).Where("room_id = ?", roomID).Count(&count)
+	if count == 0 {
+		room := &entity.ChatRoom{
+			RoomID:   roomID,
+			RoomName: roomName,
+		}
+		return DB.WithContext(ctx).Create(room).Error
+	}
+	return nil
+}
+
+func AddRoomMemberIfNotExists(ctx context.Context, roomID, userID string) error {
+	var count int64
+	DB.WithContext(ctx).Model(&entity.RoomMember{}).Where("room_id = ? AND user_id = ?", roomID, userID).Count(&count)
+	if count == 0 {
+		member := &entity.RoomMember{
+			RoomID:   roomID,
+			UserID:   userID,
+			JoinedAt: time.Now(),
+		}
+		return DB.WithContext(ctx).Create(member).Error
+	}
+	return nil
+}
+
+func IsRoomMember(ctx context.Context, roomID, userID string) bool {
+	var count int64
+	DB.WithContext(ctx).Model(&entity.RoomMember{}).Where("room_id = ? AND user_id = ?", roomID, userID).Count(&count)
+	return count > 0
 }

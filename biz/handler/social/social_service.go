@@ -27,6 +27,7 @@ func RelationAction(ctx context.Context, c *app.RequestContext) {
 
 	userID := jwt.GetUserID(ctx, c)
 	if err := socialService.RelationAction(ctx, userID, req.ToUserID, req.ActionType); err != nil {
+		errno.Log(ctx, "关注操作失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -46,6 +47,7 @@ func FollowingList(ctx context.Context, c *app.RequestContext) {
 
 	items, total, err := socialService.FollowingList(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取关注列表失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -72,6 +74,7 @@ func FollowerList(ctx context.Context, c *app.RequestContext) {
 
 	items, total, err := socialService.FollowerList(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取粉丝列表失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -99,6 +102,7 @@ func FriendsList(ctx context.Context, c *app.RequestContext) {
 	userID := jwt.GetUserID(ctx, c)
 	items, total, err := socialService.FriendsList(ctx, userID, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取好友列表失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
