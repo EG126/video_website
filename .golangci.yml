@@ -29,27 +29,27 @@ linters:
         linters:
           - errcheck
           - unused
-      # 忽略 Close 函数的错误返回值检查（在 defer 中通常忽略）
+      # 忽略 Close 函数的错误返回值检查
       - linters:
           - errcheck
         text: "Error return value of `.*Close` is not checked"
-      # G115: 忽略整数溢出转换警告（实际业务数据量不会达到溢出阈值）
+      # G115: 忽略整数溢出转换警告
       - linters:
           - gosec
         text: "G115:"
-      # G306: 忽略文件权限警告（0644 对非敏感文件是合理的）
+      # G306: 忽略文件权限警告
       - linters:
           - gosec
         text: "G306:"
-      # G706: 忽略日志注入警告（配置值来自环境变量，风险可控）
+      # G706: 忽略日志注入警告
       - linters:
           - gosec
         text: "G706:"
-      # G118: 忽略 context 取消函数未调用警告（服务关闭时会自动取消）
+      # G118: 忽略 context 取消函数未调用警告
       - linters:
           - gosec
         text: "G118:"
-      # G104: 忽略未处理错误警告（在 defer 场景下可接受）
+      # G104: 忽略未处理错误警告
       - linters:
           - gosec
         text: "G104:"
