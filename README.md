@@ -75,10 +75,10 @@ video_website/
 │   ├── router/             # 路由注册
 │   └── service/            # 业务服务
 ├── config/                 # 配置文件
-├── docs/                   # 项目文档
 ├── idl/                    # IDL 定义文件
 ├── pkg/                    # 公共包
 │   ├── bcrypt/             # 密码加密
+│   ├── constants/          # 常量定义
 │   ├── errno/              # 错误定义
 │   ├── jwt/                # JWT 工具
 │   ├── response/           # 响应封装
