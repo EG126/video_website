@@ -6,12 +6,28 @@ mysql:
 
 jwt:
   secret: "secret"
+  refresh_expire: 604800
+  mfa_expire: 604800
+  mfa_period: 30
 
 static:
-  base_url: "http://localhost:8888/static"
+  base_url: "http://127.0.0.1:8888"
   upload_dir: "./static"
+  avatar_path: "/static/avatars/"
+  video_path: "/static/videos/"
+  default_avatar: "/static/avatars/default_avatar.png"
 
 redis:
   addr: "localhost:6379"
   password: ""
   db: 0
+  chat_expire: 604800
+
+video:
+  feed_limit: 30
+  popular_limit: 100
+
+expire:
+  refresh_token: 604800
+  mfa: 604800
+  chat: 604800

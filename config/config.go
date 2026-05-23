@@ -2,54 +2,163 @@ package config
 
 import (
 	"log"
-	"os"
+	"sync"
 
-	"gopkg.in/yaml.v3"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Server struct {
-		Address string `yaml:"address"`
-	} `yaml:"server"`
-	MySQL struct {
-		DSN string `yaml:"dsn"`
-	} `yaml:"mysql"`
-	JWT struct {
-		Secret string `yaml:"secret"`
-	} `yaml:"jwt"`
-	Static struct {
-		BaseURL   string `yaml:"base_url"`
-		UploadDir string `yaml:"upload_dir"`
-	} `yaml:"static"`
-	Redis struct {
-		Addr     string `yaml:"addr"`
-		Password string `yaml:"password"`
-		DB       int    `yaml:"db"`
-	} `yaml:"redis"`
+	Server ServerConfig `mapstructure:"server"`
+	MySQL  MySQLConfig  `mapstructure:"mysql"`
+	JWT    JWTConfig    `mapstructure:"jwt"`
+	Static StaticConfig `mapstructure:"static"`
+	Redis  RedisConfig  `mapstructure:"redis"`
+	Video  VideoConfig  `mapstructure:"video"`
+	Expire ExpireConfig `mapstructure:"expire"`
 }
 
-var Conf *Config
+type ServerConfig struct {
+	Address string `mapstructure:"address"`
+}
+
+type MySQLConfig struct {
+	DSN string `mapstructure:"dsn"`
+}
+
+type JWTConfig struct {
+	Secret        string `mapstructure:"secret"`
+	RefreshExpire int64  `mapstructure:"refresh_expire"`
+	MFAExpire     int64  `mapstructure:"mfa_expire"`
+	MFAPeriod     int    `mapstructure:"mfa_period"`
+}
+
+type StaticConfig struct {
+	BaseURL       string `mapstructure:"base_url"`
+	UploadDir     string `mapstructure:"upload_dir"`
+	AvatarPath    string `mapstructure:"avatar_path"`
+	VideoPath     string `mapstructure:"video_path"`
+	DefaultAvatar string `mapstructure:"default_avatar"`
+}
+
+type RedisConfig struct {
+	Addr       string `mapstructure:"addr"`
+	Password   string `mapstructure:"password"`
+	DB         int    `mapstructure:"db"`
+	ChatExpire int64  `mapstructure:"chat_expire"`
+}
+
+type VideoConfig struct {
+	FeedLimit    int `mapstructure:"feed_limit"`
+	PopularLimit int `mapstructure:"popular_limit"`
+}
+
+type ExpireConfig struct {
+	RefreshToken int64 `mapstructure:"refresh_token"`
+	MFA          int64 `mapstructure:"mfa"`
+	Chat         int64 `mapstructure:"chat"`
+}
+
+var (
+	Conf              *Config
+	viperV            *viper.Viper
+	rwMutex           sync.RWMutex
+	onChangeCallbacks []func(*Config)  // 配置变更回调列表
+)
 
 func InitConfig() {
-	data, err := os.ReadFile("config/config.yaml")
-	if err != nil {
+	viperV = viper.New()
+	viperV.SetConfigName("config")
+	viperV.SetConfigType("yaml")
+	viperV.AddConfigPath("config")
+	viperV.AddConfigPath("./config")
+	viperV.AddConfigPath("../config")
+
+	viperV.SetDefault("server.address", "0.0.0.0:8888")
+	viperV.SetDefault("jwt.refresh_expire", 604800)
+	viperV.SetDefault("jwt.mfa_expire", 604800)
+	viperV.SetDefault("jwt.mfa_period", 30)
+	viperV.SetDefault("static.base_url", "http://127.0.0.1:8888")
+	viperV.SetDefault("static.avatar_path", "/static/avatars/")
+	viperV.SetDefault("static.video_path", "/static/videos/")
+	viperV.SetDefault("static.default_avatar", "/static/avatars/default_avatar.png")
+	viperV.SetDefault("redis.chat_expire", 604800)
+	viperV.SetDefault("video.feed_limit", 30)
+	viperV.SetDefault("video.popular_limit", 100)
+	viperV.SetDefault("expire.refresh_token", 604800)
+	viperV.SetDefault("expire.mfa", 604800)
+	viperV.SetDefault("expire.chat", 604800)
+
+	if err := viperV.ReadInConfig(); err != nil {
 		log.Fatalf("读取配置文件失败: %v", err)
 	}
+
 	Conf = &Config{}
-	if err := yaml.Unmarshal(data, Conf); err != nil {
+	if err := viperV.Unmarshal(Conf); err != nil {
 		log.Fatalf("解析配置文件失败: %v", err)
 	}
 
-	if dsn := os.Getenv("MYSQL_DSN"); dsn != "" {
-		Conf.MySQL.DSN = dsn
+	// 应用环境变量覆盖
+	applyEnvOverrides()
+
+	viperV.WatchConfig() // 监听配置文件变更
+	viperV.OnConfigChange(func(e fsnotify.Event) {
+		log.Printf("配置文件已变更: %s", e.Name)
+		reloadConfig() // 重新加载配置
+	})
+
+	log.Println("配置初始化完成，支持热更新")
+}
+
+func applyEnvOverrides() {
+	if dsn := viperV.GetString("MYSQL_DSN"); dsn != "" {
+		viperV.Set("mysql.dsn", dsn)
 		log.Printf("使用环境变量 MYSQL_DSN: %s", dsn)
 	}
-	if addr := os.Getenv("REDIS_ADDR"); addr != "" {
-		Conf.Redis.Addr = addr
+	if addr := viperV.GetString("REDIS_ADDR"); addr != "" {
+		viperV.Set("redis.addr", addr)
 		log.Printf("使用环境变量 REDIS_ADDR: %s", addr)
 	}
-	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
-		Conf.JWT.Secret = jwtSecret
+	if jwtSecret := viperV.GetString("JWT_SECRET"); jwtSecret != "" {
+		viperV.Set("jwt.secret", jwtSecret)
 		log.Printf("使用环境变量 JWT_SECRET")
 	}
+}
+
+func reloadConfig() {
+	rwMutex.Lock()
+	defer rwMutex.Unlock()
+
+	newConf := &Config{}
+	if err := viperV.Unmarshal(newConf); err != nil {
+		log.Printf("重新加载配置失败: %v", err)
+		return
+	}
+
+	applyEnvOverrides()
+
+	oldConf := Conf
+	Conf = newConf
+
+	log.Printf("配置热更新成功")
+
+	for _, callback := range onChangeCallbacks {
+		go callback(newConf)
+	}
+
+	_ = oldConf
+}
+
+func OnConfigChange(callback func(*Config)) {
+	onChangeCallbacks = append(onChangeCallbacks, callback)
+}
+
+func GetConfig() *Config {
+	rwMutex.RLock()
+	defer rwMutex.RUnlock()
+	return Conf
+}
+
+func IsEnvSet(key string) bool {
+	return viperV.IsSet(key)
 }
