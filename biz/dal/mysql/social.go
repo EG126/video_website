@@ -4,6 +4,8 @@ import (
 	"context"
 	"video_website/biz/dal/mysql/entity"
 	"video_website/pkg/utils"
+
+	pkgErrors "github.com/pkg/errors"
 )
 
 func FollowAction(ctx context.Context, followerID, followingID string, actionType int32) error {
@@ -14,9 +16,17 @@ func FollowAction(ctx context.Context, followerID, followingID string, actionTyp
 			FollowerID:  followerID,
 			FollowingID: followingID,
 		}
-		return DB.WithContext(ctx).FirstOrCreate(follow, "follower_id = ? AND following_id = ?", followerID, followingID).Error
+		err := DB.WithContext(ctx).FirstOrCreate(follow, "follower_id = ? AND following_id = ?", followerID, followingID).Error
+		if err != nil {
+			return pkgErrors.Wrapf(err, "FollowAction create failed, follower=%s, following=%s", followerID, followingID)
+		}
+		return nil
 	case 2:
-		return DB.WithContext(ctx).Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&entity.Follow{}).Error
+		err := DB.WithContext(ctx).Where("follower_id = ? AND following_id = ?", followerID, followingID).Delete(&entity.Follow{}).Error
+		if err != nil {
+			return pkgErrors.Wrapf(err, "FollowAction delete failed, follower=%s, following=%s", followerID, followingID)
+		}
+		return nil
 	}
 	return nil
 }
@@ -26,12 +36,12 @@ func GetFollowing(ctx context.Context, userID string, pageNum, pageSize int32) (
 	var total int64
 	db := DB.WithContext(ctx).Model(&entity.Follow{}).Where("follower_id = ?", userID)
 	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, pkgErrors.Wrapf(err, "GetFollowing count failed, userID=%s", userID)
 	}
 	offset := (pageNum - 1) * pageSize
 	err := db.Offset(int(offset)).Limit(int(pageSize)).Order("created_at desc").Find(&follows).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, pkgErrors.Wrapf(err, "GetFollowing query failed, userID=%s", userID)
 	}
 	var ids []string
 	for _, f := range follows {
@@ -45,12 +55,12 @@ func GetFollowers(ctx context.Context, userID string, pageNum, pageSize int32) (
 	var total int64
 	db := DB.WithContext(ctx).Model(&entity.Follow{}).Where("following_id = ?", userID)
 	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return nil, 0, pkgErrors.Wrapf(err, "GetFollowers count failed, userID=%s", userID)
 	}
 	offset := (pageNum - 1) * pageSize
 	err := db.Offset(int(offset)).Limit(int(pageSize)).Order("created_at").Find(&follows).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, pkgErrors.Wrapf(err, "GetFollowers query failed, userID=%s", userID)
 	}
 	var ids []string
 	for _, f := range follows {
@@ -65,10 +75,12 @@ func GetFriends(ctx context.Context, userID string, pageNum, pageSize int32) ([]
 	var friends []string
 	err := DB.WithContext(ctx).Model(&entity.Follow{}).Where("follower_id IN (?) AND following_id = ?", subQuery, userID).Count(&total).Error
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, pkgErrors.Wrapf(err, "GetFriends count failed, userID=%s", userID)
 	}
 	offset := (pageNum - 1) * pageSize
-	// Pluck:提取单列
 	err = DB.WithContext(ctx).Model(&entity.Follow{}).Where("follower_id IN (?) AND following_id = ?", subQuery, userID).Offset(int(offset)).Limit(int(pageSize)).Pluck("follower_id", &friends).Error
-	return friends, total, err
+	if err != nil {
+		return nil, 0, pkgErrors.Wrapf(err, "GetFriends query failed, userID=%s", userID)
+	}
+	return friends, total, nil
 }

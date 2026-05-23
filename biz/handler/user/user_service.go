@@ -26,6 +26,7 @@ func Register(ctx context.Context, c *app.RequestContext) {
 	}
 
 	if err := userService.Register(ctx, req.Username, req.Password); err != nil {
+		errno.Log(ctx, "注册失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -45,6 +46,7 @@ func Login(ctx context.Context, c *app.RequestContext) {
 
 	result, err := userService.Login(ctx, req.Username, req.Password, req.Code)
 	if err != nil {
+		errno.Log(ctx, "登录失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -73,6 +75,7 @@ func Info(ctx context.Context, c *app.RequestContext) {
 
 	data, err := userService.Info(ctx, req.UserID)
 	if err != nil {
+		errno.Log(ctx, "获取用户信息失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -93,6 +96,7 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 	userID := jwt.GetUserID(ctx, c)
 	data, err := userService.UploadAvatar(ctx, c, userID)
 	if err != nil {
+		errno.Log(ctx, "上传头像失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -112,6 +116,7 @@ func Refresh(ctx context.Context, c *app.RequestContext) {
 
 	result, err := userService.Refresh(ctx, req.RefreshToken)
 	if err != nil {
+		errno.Log(ctx, "刷新token失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -139,6 +144,7 @@ func GetMFA(ctx context.Context, c *app.RequestContext) {
 	userID := jwt.GetUserID(ctx, c)
 	result, err := userService.GetMFA(ctx, userID)
 	if err != nil {
+		errno.Log(ctx, "获取MFA二维码失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -165,6 +171,7 @@ func BindMFA(ctx context.Context, c *app.RequestContext) {
 
 	userID := jwt.GetUserID(ctx, c)
 	if err := userService.BindMFA(ctx, userID, req.Code, req.Secret); err != nil {
+		errno.Log(ctx, "绑定MFA失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}

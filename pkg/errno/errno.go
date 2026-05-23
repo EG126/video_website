@@ -1,38 +1,81 @@
 package errno
 
-import "fmt"
+import (
+	"context"
 
-type ErrNo struct {
-	Code int32
-	Msg  string
-}
-
-func (e ErrNo) Error() string {
-	return fmt.Sprintf("code=%d, msg=%s", e.Code, e.Msg)
-}
+	"github.com/cloudwego/hertz/pkg/common/hlog"
+	"github.com/pkg/errors"
+)
 
 var (
-	Success          = ErrNo{Code: 0, Msg: "success"}
-	ParamError       = ErrNo{Code: 10001, Msg: "参数错误"}
-	UserNotExist     = ErrNo{Code: 10002, Msg: "用户不存在"}
-	PasswordError    = ErrNo{Code: 10003, Msg: "密码错误"}
-	UsernameExists   = ErrNo{Code: 10004, Msg: "用户名已存在"}
-	Unauthorized     = ErrNo{Code: 10005, Msg: "未授权"}
-	TokenInvalid     = ErrNo{Code: 10006, Msg: "token无效"}
-	TokenExpired     = ErrNo{Code: 10007, Msg: "token过期"}
-	TokenError       = ErrNo{Code: 10008, Msg: "token生成失败"}
-	Forbidden        = ErrNo{Code: 10009, Msg: "禁止访问"}
-	VideoNotExist    = ErrNo{Code: 10010, Msg: "视频不存在"}
-	CommentNotExist  = ErrNo{Code: 10011, Msg: "评论不存在"}
-	RelationNotExist = ErrNo{Code: 10012, Msg: "关系不存在"}
-	MFARequired      = ErrNo{Code: 10013, Msg: "需要MFA验证码"}
-	MFAError         = ErrNo{Code: 10014, Msg: "MFA验证码错误"}
+	Success          = errors.New("success")
+	ParamError       = errors.New("参数错误")
+	UserNotExist     = errors.New("用户不存在")
+	PasswordError    = errors.New("密码错误")
+	UsernameExists   = errors.New("用户名已存在")
+	Unauthorized     = errors.New("未授权")
+	TokenInvalid     = errors.New("token无效")
+	TokenExpired     = errors.New("token过期")
+	TokenError       = errors.New("token生成失败")
+	Forbidden        = errors.New("禁止访问")
+	VideoNotExist    = errors.New("视频不存在")
+	CommentNotExist  = errors.New("评论不存在")
+	RelationNotExist = errors.New("关系不存在")
+	MFARequired      = errors.New("需要MFA验证码")
+	MFAError         = errors.New("MFA验证码错误")
 
-	DBError             = ErrNo{Code: 20001, Msg: "数据库错误"}
-	FileTooLarge        = ErrNo{Code: 20002, Msg: "文件过大"}
-	FileTypeError       = ErrNo{Code: 20003, Msg: "文件类型错误"}
-	FileError           = ErrNo{Code: 20004, Msg: "文件操作失败"}
-	RedisError          = ErrNo{Code: 20005, Msg: "缓存错误"}
-	EncryptError        = ErrNo{Code: 20006, Msg: "加密操作失败"}
-	InternalServerError = ErrNo{Code: 20007, Msg: "内部服务器错误"}
+	DBError             = errors.New("数据库错误")
+	FileTooLarge        = errors.New("文件过大")
+	FileTypeError       = errors.New("文件类型错误")
+	FileError           = errors.New("文件操作失败")
+	RedisError          = errors.New("缓存错误")
+	EncryptError        = errors.New("加密操作失败")
+	InternalServerError = errors.New("内部服务器错误")
 )
+
+var errorCodeMap = map[error]int32{
+	Success:          0,
+	ParamError:       10001,
+	UserNotExist:     10002,
+	PasswordError:    10003,
+	UsernameExists:   10004,
+	Unauthorized:     10005,
+	TokenInvalid:     10006,
+	TokenExpired:     10007,
+	TokenError:       10008,
+	Forbidden:        10009,
+	VideoNotExist:    10010,
+	CommentNotExist:  10011,
+	RelationNotExist: 10012,
+	MFARequired:      10013,
+	MFAError:         10014,
+
+	DBError:             20001,
+	FileTooLarge:        20002,
+	FileTypeError:       20003,
+	FileError:           20004,
+	RedisError:          20005,
+	EncryptError:        20006,
+	InternalServerError: 20007,
+}
+
+func GetCode(err error) int32 {
+	originalErr := Cause(err)
+	if code, ok := errorCodeMap[originalErr]; ok {
+		return code
+	}
+	if code, ok := errorCodeMap[err]; ok {
+		return code
+	}
+	return 20001 // 默认返回内部错误
+}
+
+func Cause(err error) error {
+	return errors.Cause(err)
+}
+
+func Log(ctx context.Context, msg string, err error) {
+	originalErr := Cause(err)
+	hlog.CtxErrorf(ctx, "%s: original error: %T %v", msg, originalErr, originalErr)
+	hlog.CtxErrorf(ctx, "stack trace:\n%+v", err)
+}

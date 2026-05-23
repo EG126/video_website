@@ -27,6 +27,7 @@ func Publish(ctx context.Context, c *app.RequestContext) {
 
 	userID := jwt.GetUserID(ctx, c)
 	if err := videoService.Publish(ctx, c, userID, req.Title, req.Description); err != nil {
+		errno.Log(ctx, "投稿失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -46,6 +47,7 @@ func List(ctx context.Context, c *app.RequestContext) {
 
 	items, total, err := videoService.List(ctx, req.UserID, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取发布列表失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -72,6 +74,7 @@ func Popular(ctx context.Context, c *app.RequestContext) {
 
 	items, err := videoService.Popular(ctx, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "获取热门视频失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -91,6 +94,7 @@ func Search(ctx context.Context, c *app.RequestContext) {
 
 	items, total, err := videoService.Search(ctx, req.Keywords, req.PageNum, req.PageSize)
 	if err != nil {
+		errno.Log(ctx, "搜索视频失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
@@ -117,6 +121,7 @@ func Feed(ctx context.Context, c *app.RequestContext) {
 
 	items, err := videoService.Feed(ctx, req.LatestTime, "")
 	if err != nil {
+		errno.Log(ctx, "获取视频流失败", err)
 		response.SendResponse(c, err, nil)
 		return
 	}
