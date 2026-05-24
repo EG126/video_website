@@ -48,7 +48,6 @@ func main() {
 
 	go func() {
 		http.HandleFunc("/ws", chatHandler.HTTPWebSocketHandler)
-		hlog.Infof("WebSocket 服务已启动: ws://localhost:6666/ws")
 		srv := &http.Server{
 			Addr:         ":6666",
 			ReadTimeout:  30 * time.Second,

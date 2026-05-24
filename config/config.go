@@ -149,16 +149,8 @@ func reloadConfig() {
 	_ = oldConf
 }
 
+// 注册配置变更回调
 func OnConfigChange(callback func(*Config)) {
 	onChangeCallbacks = append(onChangeCallbacks, callback)
 }
 
-func GetConfig() *Config {
-	rwMutex.RLock()
-	defer rwMutex.RUnlock()
-	return Conf
-}
-
-func IsEnvSet(key string) bool {
-	return viperV.IsSet(key)
-}
